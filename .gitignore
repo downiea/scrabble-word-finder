@@ -17,8 +17,8 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 
-# ── Word lists (copyright — see backend/src/main/resources/words/README.md) ──
-backend/src/main/resources/words/*.txt
+# ── Word lists ───────────────────────────────────────────────────────────────
+backend/src/main/resources/words/*.orig
 
 # ── macOS ─────────────────────────────────────────────────────────────────
 .DS_Store
