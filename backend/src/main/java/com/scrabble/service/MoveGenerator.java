@@ -90,7 +90,7 @@ public class MoveGenerator {
             int startRow = anchorRow - (direction == Direction.DOWN ? back : 0);
             int startCol = anchorCol - (direction == Direction.ACROSS ? back : 0);
             extendWord(board, startRow, startCol, startRow, startCol, direction,
-                    new ArrayList<>(java.util.Arrays.asList(toCharList(rack))), "",
+                    new ArrayList<>(toCharList(rack)), "",
                     new ArrayList<>(), ruleset, results);
         }
     }
