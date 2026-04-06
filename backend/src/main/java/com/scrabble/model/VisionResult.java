@@ -1,0 +1,23 @@
+package com.scrabble.model;
+
+import lombok.Builder;
+import lombok.Data;
+
+/**
+ * Result returned by the Claude Vision step — the parsed board state plus
+ * any rack tiles the model was able to read from the image.
+ */
+@Data
+@Builder
+public class VisionResult {
+
+    private BoardState boardState;
+
+    /**
+     * Rack tiles extracted from the image, e.g. "AEINRST".
+     * Null if the image did not show the player's rack or Claude was not confident.
+     */
+    private String extractedTiles;
+
+    private java.util.List<String> warnings;
+}

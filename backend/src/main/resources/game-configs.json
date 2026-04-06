@@ -1,0 +1,230 @@
+[
+  {
+    "id": "unknown",
+    "name": "Auto-detect",
+    "description": "Claude will read the board layout and multipliers directly from the image",
+    "boardSize": 15,
+    "multiplierHint": null,
+    "bingoBonus": null,
+    "letterValues": null,
+    "boardLayout": null
+  },
+  {
+    "id": "scrabble_standard",
+    "name": "Scrabble (Standard)",
+    "description": "Official Scrabble board — DL, TL, DW, TW notation",
+    "boardSize": 15,
+    "multiplierHint": "Multiplier squares are labelled DL (double letter), TL (triple letter), DW (double word), TW (triple word)",
+    "bingoBonus": 50,
+    "letterValues": {
+      "A":1,"B":3,"C":3,"D":2,"E":1,"F":4,"G":2,"H":4,"I":1,"J":8,"K":5,"L":1,"M":3,
+      "N":1,"O":1,"P":3,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":4,"W":4,"X":8,"Y":4,"Z":10
+    },
+    "boardLayout": [
+      {"row":0,"col":0,"squareType":"TRIPLE_WORD"},{"row":0,"col":7,"squareType":"TRIPLE_WORD"},{"row":0,"col":14,"squareType":"TRIPLE_WORD"},
+      {"row":7,"col":0,"squareType":"TRIPLE_WORD"},{"row":7,"col":14,"squareType":"TRIPLE_WORD"},
+      {"row":14,"col":0,"squareType":"TRIPLE_WORD"},{"row":14,"col":7,"squareType":"TRIPLE_WORD"},{"row":14,"col":14,"squareType":"TRIPLE_WORD"},
+      {"row":1,"col":1,"squareType":"DOUBLE_WORD"},{"row":2,"col":2,"squareType":"DOUBLE_WORD"},{"row":3,"col":3,"squareType":"DOUBLE_WORD"},{"row":4,"col":4,"squareType":"DOUBLE_WORD"},
+      {"row":7,"col":7,"squareType":"DOUBLE_WORD"},
+      {"row":10,"col":10,"squareType":"DOUBLE_WORD"},{"row":11,"col":11,"squareType":"DOUBLE_WORD"},{"row":12,"col":12,"squareType":"DOUBLE_WORD"},{"row":13,"col":13,"squareType":"DOUBLE_WORD"},
+      {"row":1,"col":13,"squareType":"DOUBLE_WORD"},{"row":2,"col":12,"squareType":"DOUBLE_WORD"},{"row":3,"col":11,"squareType":"DOUBLE_WORD"},{"row":4,"col":10,"squareType":"DOUBLE_WORD"},
+      {"row":10,"col":4,"squareType":"DOUBLE_WORD"},{"row":11,"col":3,"squareType":"DOUBLE_WORD"},{"row":12,"col":2,"squareType":"DOUBLE_WORD"},{"row":13,"col":1,"squareType":"DOUBLE_WORD"},
+      {"row":1,"col":5,"squareType":"TRIPLE_LETTER"},{"row":1,"col":9,"squareType":"TRIPLE_LETTER"},
+      {"row":5,"col":1,"squareType":"TRIPLE_LETTER"},{"row":5,"col":5,"squareType":"TRIPLE_LETTER"},{"row":5,"col":9,"squareType":"TRIPLE_LETTER"},{"row":5,"col":13,"squareType":"TRIPLE_LETTER"},
+      {"row":9,"col":1,"squareType":"TRIPLE_LETTER"},{"row":9,"col":5,"squareType":"TRIPLE_LETTER"},{"row":9,"col":9,"squareType":"TRIPLE_LETTER"},{"row":9,"col":13,"squareType":"TRIPLE_LETTER"},
+      {"row":13,"col":5,"squareType":"TRIPLE_LETTER"},{"row":13,"col":9,"squareType":"TRIPLE_LETTER"},
+      {"row":0,"col":3,"squareType":"DOUBLE_LETTER"},{"row":0,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":2,"col":6,"squareType":"DOUBLE_LETTER"},{"row":2,"col":8,"squareType":"DOUBLE_LETTER"},
+      {"row":3,"col":0,"squareType":"DOUBLE_LETTER"},{"row":3,"col":7,"squareType":"DOUBLE_LETTER"},{"row":3,"col":14,"squareType":"DOUBLE_LETTER"},
+      {"row":6,"col":2,"squareType":"DOUBLE_LETTER"},{"row":6,"col":6,"squareType":"DOUBLE_LETTER"},{"row":6,"col":8,"squareType":"DOUBLE_LETTER"},{"row":6,"col":12,"squareType":"DOUBLE_LETTER"},
+      {"row":7,"col":3,"squareType":"DOUBLE_LETTER"},{"row":7,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":8,"col":2,"squareType":"DOUBLE_LETTER"},{"row":8,"col":6,"squareType":"DOUBLE_LETTER"},{"row":8,"col":8,"squareType":"DOUBLE_LETTER"},{"row":8,"col":12,"squareType":"DOUBLE_LETTER"},
+      {"row":11,"col":0,"squareType":"DOUBLE_LETTER"},{"row":11,"col":7,"squareType":"DOUBLE_LETTER"},{"row":11,"col":14,"squareType":"DOUBLE_LETTER"},
+      {"row":12,"col":6,"squareType":"DOUBLE_LETTER"},{"row":12,"col":8,"squareType":"DOUBLE_LETTER"},
+      {"row":14,"col":3,"squareType":"DOUBLE_LETTER"},{"row":14,"col":11,"squareType":"DOUBLE_LETTER"}
+    ]
+  },
+  {
+    "id": "scrabble_go",
+    "name": "Scrabble GO",
+    "description": "Scrabble GO mobile app — same layout as standard Scrabble",
+    "boardSize": 15,
+    "multiplierHint": "Multiplier squares use colour coding: red=triple word, pink=double word, dark blue=triple letter, light blue=double letter",
+    "bingoBonus": 50,
+    "letterValues": {
+      "A":1,"B":3,"C":3,"D":2,"E":1,"F":4,"G":2,"H":4,"I":1,"J":8,"K":5,"L":1,"M":3,
+      "N":1,"O":1,"P":3,"Q":10,"R":1,"S":1,"T":1,"U":1,"V":4,"W":4,"X":8,"Y":4,"Z":10
+    },
+    "boardLayout": [
+      {"row":0,"col":0,"squareType":"TRIPLE_WORD"},{"row":0,"col":7,"squareType":"TRIPLE_WORD"},{"row":0,"col":14,"squareType":"TRIPLE_WORD"},
+      {"row":7,"col":0,"squareType":"TRIPLE_WORD"},{"row":7,"col":14,"squareType":"TRIPLE_WORD"},
+      {"row":14,"col":0,"squareType":"TRIPLE_WORD"},{"row":14,"col":7,"squareType":"TRIPLE_WORD"},{"row":14,"col":14,"squareType":"TRIPLE_WORD"},
+      {"row":1,"col":1,"squareType":"DOUBLE_WORD"},{"row":2,"col":2,"squareType":"DOUBLE_WORD"},{"row":3,"col":3,"squareType":"DOUBLE_WORD"},{"row":4,"col":4,"squareType":"DOUBLE_WORD"},
+      {"row":7,"col":7,"squareType":"DOUBLE_WORD"},
+      {"row":10,"col":10,"squareType":"DOUBLE_WORD"},{"row":11,"col":11,"squareType":"DOUBLE_WORD"},{"row":12,"col":12,"squareType":"DOUBLE_WORD"},{"row":13,"col":13,"squareType":"DOUBLE_WORD"},
+      {"row":1,"col":13,"squareType":"DOUBLE_WORD"},{"row":2,"col":12,"squareType":"DOUBLE_WORD"},{"row":3,"col":11,"squareType":"DOUBLE_WORD"},{"row":4,"col":10,"squareType":"DOUBLE_WORD"},
+      {"row":10,"col":4,"squareType":"DOUBLE_WORD"},{"row":11,"col":3,"squareType":"DOUBLE_WORD"},{"row":12,"col":2,"squareType":"DOUBLE_WORD"},{"row":13,"col":1,"squareType":"DOUBLE_WORD"},
+      {"row":1,"col":5,"squareType":"TRIPLE_LETTER"},{"row":1,"col":9,"squareType":"TRIPLE_LETTER"},
+      {"row":5,"col":1,"squareType":"TRIPLE_LETTER"},{"row":5,"col":5,"squareType":"TRIPLE_LETTER"},{"row":5,"col":9,"squareType":"TRIPLE_LETTER"},{"row":5,"col":13,"squareType":"TRIPLE_LETTER"},
+      {"row":9,"col":1,"squareType":"TRIPLE_LETTER"},{"row":9,"col":5,"squareType":"TRIPLE_LETTER"},{"row":9,"col":9,"squareType":"TRIPLE_LETTER"},{"row":9,"col":13,"squareType":"TRIPLE_LETTER"},
+      {"row":13,"col":5,"squareType":"TRIPLE_LETTER"},{"row":13,"col":9,"squareType":"TRIPLE_LETTER"},
+      {"row":0,"col":3,"squareType":"DOUBLE_LETTER"},{"row":0,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":2,"col":6,"squareType":"DOUBLE_LETTER"},{"row":2,"col":8,"squareType":"DOUBLE_LETTER"},
+      {"row":3,"col":0,"squareType":"DOUBLE_LETTER"},{"row":3,"col":7,"squareType":"DOUBLE_LETTER"},{"row":3,"col":14,"squareType":"DOUBLE_LETTER"},
+      {"row":6,"col":2,"squareType":"DOUBLE_LETTER"},{"row":6,"col":6,"squareType":"DOUBLE_LETTER"},{"row":6,"col":8,"squareType":"DOUBLE_LETTER"},{"row":6,"col":12,"squareType":"DOUBLE_LETTER"},
+      {"row":7,"col":3,"squareType":"DOUBLE_LETTER"},{"row":7,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":8,"col":2,"squareType":"DOUBLE_LETTER"},{"row":8,"col":6,"squareType":"DOUBLE_LETTER"},{"row":8,"col":8,"squareType":"DOUBLE_LETTER"},{"row":8,"col":12,"squareType":"DOUBLE_LETTER"},
+      {"row":11,"col":0,"squareType":"DOUBLE_LETTER"},{"row":11,"col":7,"squareType":"DOUBLE_LETTER"},{"row":11,"col":14,"squareType":"DOUBLE_LETTER"},
+      {"row":12,"col":6,"squareType":"DOUBLE_LETTER"},{"row":12,"col":8,"squareType":"DOUBLE_LETTER"},
+      {"row":14,"col":3,"squareType":"DOUBLE_LETTER"},{"row":14,"col":11,"squareType":"DOUBLE_LETTER"}
+    ]
+  },
+  {
+    "id": "words_with_friends",
+    "name": "Words With Friends",
+    "description": "Words With Friends mobile app — different multiplier positions and letter values to standard Scrabble",
+    "boardSize": 15,
+    "multiplierHint": "Multiplier squares are labelled TW, DW, TL, DL",
+    "bingoBonus": 35,
+    "letterValues": {
+      "A":1,"B":4,"C":4,"D":2,"E":1,"F":4,"G":3,"H":3,"I":1,"J":10,"K":5,"L":2,"M":4,
+      "N":2,"O":1,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":2,"V":5,"W":4,"X":8,"Y":3,"Z":10
+    },
+    "boardLayout": [
+      {"row":0,"col":0,"squareType":"TRIPLE_LETTER"},
+      {"row":0,"col":3,"squareType":"TRIPLE_WORD"},
+      {"row":0,"col":7,"squareType":"DOUBLE_LETTER"},
+      {"row":0,"col":11,"squareType":"TRIPLE_WORD"},
+      {"row":0,"col":14,"squareType":"TRIPLE_LETTER"},
+
+      {"row":1,"col":1,"squareType":"DOUBLE_WORD"},
+      {"row":1,"col":6,"squareType":"TRIPLE_LETTER"},
+      {"row":1,"col":8,"squareType":"TRIPLE_LETTER"},
+      {"row":1,"col":13,"squareType":"DOUBLE_WORD"},
+
+      {"row":2,"col":4,"squareType":"DOUBLE_LETTER"},
+      {"row":2,"col":10,"squareType":"DOUBLE_WORD"},
+
+      {"row":3,"col":0,"squareType":"TRIPLE_WORD"},
+      {"row":3,"col":3,"squareType":"DOUBLE_LETTER"},
+      {"row":3,"col":7,"squareType":"DOUBLE_WORD"},
+      {"row":3,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":3,"col":14,"squareType":"TRIPLE_WORD"},
+
+      {"row":4,"col":2,"squareType":"DOUBLE_LETTER"},
+      {"row":4,"col":5,"squareType":"TRIPLE_LETTER"},
+      {"row":4,"col":9,"squareType":"TRIPLE_LETTER"},
+      {"row":4,"col":12,"squareType":"DOUBLE_LETTER"},
+
+      {"row":5,"col":4,"squareType":"TRIPLE_LETTER"},
+      {"row":5,"col":7,"squareType":"DOUBLE_LETTER"},
+      {"row":5,"col":10,"squareType":"TRIPLE_LETTER"},
+     
+
+      {"row":6,"col":1,"squareType":"TRIPLE_LETTER"},
+      {"row":6,"col":13,"squareType":"TRIPLE_LETTER"},
+
+      {"row":7,"col":0,"squareType":"DOUBLE_LETTER"},
+      {"row":7,"col":3,"squareType":"TRIPLE_WORD"},
+      {"row":7,"col":5,"squareType":"DOUBLE_LETTER"},
+      {"row":7,"col":9,"squareType":"DOUBLE_LETTER"},
+      {"row":7,"col":11,"squareType":"DOUBLE_WORD"},
+      {"row":7,"col":14,"squareType":"DOUBLE_LETTER"},
+
+      {"row":8,"col":1,"squareType":"TRIPLE_LETTER"},
+      {"row":8,"col":13,"squareType":"TRIPLE_LETTER"},
+
+      {"row":9,"col":4,"squareType":"TRIPLE_LETTER"},
+      {"row":9,"col":7,"squareType":"DOUBLE_LETTER"},
+      {"row":9,"col":10,"squareType":"TRIPLE_LETTER"},
+
+      {"row":10,"col":2,"squareType":"DOUBLE_LETTER"},
+      {"row":10,"col":5,"squareType":"TRIPLE_LETTER"},
+      {"row":10,"col":9,"squareType":"TRIPLE_LETTER"},
+      {"row":10,"col":12,"squareType":"DOUBLE_LETTER"},
+
+      {"row":11,"col":0,"squareType":"TRIPLE_WORD"},
+      {"row":11,"col":3,"squareType":"DOUBLE_LETTER"},
+      {"row":11,"col":7,"squareType":"DOUBLE_WORD"},
+      {"row":11,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":11,"col":14,"squareType":"TRIPLE_WORD"},
+
+      {"row":12,"col":4,"squareType":"DOUBLE_LETTER"},
+      {"row":12,"col":10,"squareType":"DOUBLE_WORD"},
+
+      {"row":13,"col":1,"squareType":"DOUBLE_WORD"},
+      {"row":13,"col":6,"squareType":"TRIPLE_LETTER"},
+      {"row":13,"col":8,"squareType":"TRIPLE_LETTER"},
+      {"row":13,"col":13,"squareType":"DOUBLE_WORD"},
+
+      {"row":14,"col":0,"squareType":"TRIPLE_LETTER"},
+      {"row":14,"col":3,"squareType":"TRIPLE_WORD"},
+      {"row":14,"col":7,"squareType":"DOUBLE_LETTER"},
+      {"row":14,"col":11,"squareType":"TRIPLE_WORD"},
+      {"row":14,"col":14,"squareType":"TRIPLE_LETTER"}
+    ]
+  },
+  {
+    "id": "lexulous",
+    "name": "Lexulous",
+    "description": "Lexulous — different letter values and board layout",
+    "boardSize": 15,
+    "multiplierHint": "Multiplier squares may include 2L, 3L, 4L, 2W, 3W labels",
+    "bingoBonus": 50,
+    "letterValues": {
+      "A":1,"B":4,"C":4,"D":2,"E":1,"F":4,"G":3,"H":4,"I":1,"J":10,"K":5,"L":2,"M":4,
+      "N":2,"O":1,"P":4,"Q":10,"R":1,"S":1,"T":1,"U":2,"V":5,"W":4,"X":8,"Y":3,"Z":10
+    },
+    "boardLayout": null
+  },
+  {
+    "id": "nyt_crossplay",
+    "name": "NYT Crossplay",
+    "description": "New York Times Crossplay — 2L/3L/2W/3W notation, 40-pt sweep bonus",
+    "boardSize": 15,
+    "multiplierHint": "Multiplier squares are labelled 2L (double letter), 3L (triple letter), 2W (double word), 3W (triple word)",
+    "bingoBonus": 40,
+    "letterValues": {
+      "A":1,"B":4,"C":3,"D":2,"E":1,"F":4,"G":4,"H":3,"I":1,"J":10,"K":6,"L":2,"M":3,
+      "N":1,"O":1,"P":3,"Q":10,"R":1,"S":1,"T":1,"U":2,"V":6,"W":5,"X":8,"Y":4,"Z":10
+    },
+    "boardLayout": [
+      {"row":0,"col":3,"squareType":"TRIPLE_WORD"},{"row":0,"col":11,"squareType":"TRIPLE_WORD"},
+      {"row":3,"col":0,"squareType":"TRIPLE_WORD"},{"row":3,"col":14,"squareType":"TRIPLE_WORD"},
+      {"row":11,"col":0,"squareType":"TRIPLE_WORD"},{"row":11,"col":14,"squareType":"TRIPLE_WORD"},
+      {"row":14,"col":3,"squareType":"TRIPLE_WORD"},{"row":14,"col":11,"squareType":"TRIPLE_WORD"},
+      {"row":1,"col":1,"squareType":"DOUBLE_WORD"},{"row":1,"col":13,"squareType":"DOUBLE_WORD"},
+      {"row":2,"col":2,"squareType":"DOUBLE_WORD"},{"row":2,"col":12,"squareType":"DOUBLE_WORD"},
+      {"row":7,"col":7,"squareType":"DOUBLE_WORD"},
+      {"row":12,"col":2,"squareType":"DOUBLE_WORD"},{"row":12,"col":12,"squareType":"DOUBLE_WORD"},
+      {"row":13,"col":1,"squareType":"DOUBLE_WORD"},{"row":13,"col":13,"squareType":"DOUBLE_WORD"},
+      {"row":0,"col":6,"squareType":"TRIPLE_LETTER"},{"row":0,"col":8,"squareType":"TRIPLE_LETTER"},
+      {"row":2,"col":4,"squareType":"TRIPLE_LETTER"},{"row":2,"col":10,"squareType":"TRIPLE_LETTER"},
+      {"row":4,"col":2,"squareType":"TRIPLE_LETTER"},{"row":4,"col":12,"squareType":"TRIPLE_LETTER"},
+      {"row":6,"col":0,"squareType":"TRIPLE_LETTER"},{"row":6,"col":14,"squareType":"TRIPLE_LETTER"},
+      {"row":8,"col":0,"squareType":"TRIPLE_LETTER"},{"row":8,"col":14,"squareType":"TRIPLE_LETTER"},
+      {"row":10,"col":2,"squareType":"TRIPLE_LETTER"},{"row":10,"col":12,"squareType":"TRIPLE_LETTER"},
+      {"row":12,"col":4,"squareType":"TRIPLE_LETTER"},{"row":12,"col":10,"squareType":"TRIPLE_LETTER"},
+      {"row":14,"col":6,"squareType":"TRIPLE_LETTER"},{"row":14,"col":8,"squareType":"TRIPLE_LETTER"},
+      {"row":0,"col":0,"squareType":"DOUBLE_LETTER"},{"row":0,"col":14,"squareType":"DOUBLE_LETTER"},
+      {"row":1,"col":5,"squareType":"DOUBLE_LETTER"},{"row":1,"col":9,"squareType":"DOUBLE_LETTER"},
+      {"row":3,"col":3,"squareType":"DOUBLE_LETTER"},{"row":3,"col":7,"squareType":"DOUBLE_LETTER"},{"row":3,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":5,"col":1,"squareType":"DOUBLE_LETTER"},{"row":5,"col":5,"squareType":"DOUBLE_LETTER"},{"row":5,"col":9,"squareType":"DOUBLE_LETTER"},{"row":5,"col":13,"squareType":"DOUBLE_LETTER"},
+      {"row":7,"col":3,"squareType":"DOUBLE_LETTER"},{"row":7,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":9,"col":1,"squareType":"DOUBLE_LETTER"},{"row":9,"col":5,"squareType":"DOUBLE_LETTER"},{"row":9,"col":9,"squareType":"DOUBLE_LETTER"},{"row":9,"col":13,"squareType":"DOUBLE_LETTER"},
+      {"row":11,"col":3,"squareType":"DOUBLE_LETTER"},{"row":11,"col":7,"squareType":"DOUBLE_LETTER"},{"row":11,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":13,"col":5,"squareType":"DOUBLE_LETTER"},{"row":13,"col":9,"squareType":"DOUBLE_LETTER"},
+      {"row":14,"col":0,"squareType":"DOUBLE_LETTER"},{"row":14,"col":14,"squareType":"DOUBLE_LETTER"}
+    ]
+  },
+  {
+    "id": "custom",
+    "name": "Other / Custom",
+    "description": "Any other Scrabble-style game — Claude will read the layout from the image",
+    "boardSize": 15,
+    "multiplierHint": "Read all multiplier squares from the image regardless of notation used",
+    "bingoBonus": null,
+    "letterValues": null,
+    "boardLayout": null
+  }
+]

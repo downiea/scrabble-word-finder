@@ -17,4 +17,10 @@ public class AnalysisResponse {
 
     /** Any warnings from the vision parsing step (e.g. low-confidence tiles). */
     private List<String> warnings;
+
+    /**
+     * Rack tiles extracted from the image by Claude Vision, e.g. "AEINRST".
+     * Null if the image did not include a visible rack or Claude was not confident.
+     */
+    private String extractedTiles;
 }

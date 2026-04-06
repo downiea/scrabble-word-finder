@@ -7,15 +7,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Generates all legal Scrabble moves for a given board state and player rack.
- *
- * Uses a cross-check approach:
- * 1. Find all anchor squares (empty squares adjacent to filled squares, or centre on first move).
- * 2. For each anchor, extend words left/right (ACROSS) and up/down (DOWN).
- * 3. Validate each candidate word against the dictionary and cross-words.
- * 4. Score valid placements.
  */
 @Slf4j
 @Service
@@ -24,18 +19,25 @@ public class MoveGenerator {
 
     private final WordListEngine wordListEngine;
 
-    // Scrabble letter values — shared between US and UK editions
-    private static final int[] LETTER_VALUES = {
-        1, 3, 3, 2, 1, 4, 2, 4, 1, 8, 5, 1, 3,
-        1, 1, 3, 10, 1, 1, 1, 1, 4, 4, 8, 4, 10
-        // A  B  C  D  E  F  G  H  I  J  K  L  M
-        // N  O  P  Q  R  S  T  U  V  W  X  Y  Z
-    };
+    // Standard Scrabble letter values — used when no game config is provided
+    private static final Map<Character, Integer> DEFAULT_LETTER_VALUES = Map.ofEntries(
+        Map.entry('A', 1), Map.entry('B', 3), Map.entry('C', 3), Map.entry('D', 2),
+        Map.entry('E', 1), Map.entry('F', 4), Map.entry('G', 2), Map.entry('H', 4),
+        Map.entry('I', 1), Map.entry('J', 8), Map.entry('K', 5), Map.entry('L', 1),
+        Map.entry('M', 3), Map.entry('N', 1), Map.entry('O', 1), Map.entry('P', 3),
+        Map.entry('Q', 10), Map.entry('R', 1), Map.entry('S', 1), Map.entry('T', 1),
+        Map.entry('U', 1), Map.entry('V', 4), Map.entry('W', 4), Map.entry('X', 8),
+        Map.entry('Y', 4), Map.entry('Z', 10)
+    );
 
-    private static final int BINGO_BONUS = 50;
+    private static final int DEFAULT_BINGO_BONUS = 50;
     private static final int RACK_SIZE = 7;
 
     public List<Move> generateMoves(BoardState board, String rack, Ruleset ruleset) {
+        return generateMoves(board, rack, ruleset, null);
+    }
+
+    public List<Move> generateMoves(BoardState board, String rack, Ruleset ruleset, GameConfig gameConfig) {
         List<Move> moves = new ArrayList<>();
         char[] rackChars = rack.toUpperCase().toCharArray();
 
@@ -43,7 +45,7 @@ public class MoveGenerator {
             for (int row = 0; row < BoardState.SIZE; row++) {
                 for (int col = 0; col < BoardState.SIZE; col++) {
                     if (isAnchor(board, row, col)) {
-                        generateMovesFromAnchor(board, row, col, direction, rackChars, ruleset, moves);
+                        generateMovesFromAnchor(board, row, col, direction, rackChars, ruleset, gameConfig, moves);
                     }
                 }
             }
@@ -57,10 +59,8 @@ public class MoveGenerator {
         Cell cell = board.getCell(row, col);
         if (cell == null || !cell.isEmpty()) return false;
 
-        // Centre square is anchor on first move
         if (row == 7 && col == 7 && board.isEmpty()) return true;
 
-        // Otherwise must be adjacent to a filled cell
         int[][] neighbours = {{row - 1, col}, {row + 1, col}, {row, col - 1}, {row, col + 1}};
         for (int[] n : neighbours) {
             if (n[0] < 0 || n[0] >= BoardState.SIZE || n[1] < 0 || n[1] >= BoardState.SIZE) continue;
@@ -72,8 +72,7 @@ public class MoveGenerator {
 
     private void generateMovesFromAnchor(BoardState board, int anchorRow, int anchorCol,
                                           Direction direction, char[] rack, Ruleset ruleset,
-                                          List<Move> results) {
-        // Find how far back we can start a word before this anchor
+                                          GameConfig gameConfig, List<Move> results) {
         int maxBack = 0;
         int r = anchorRow, c = anchorCol;
         while (true) {
@@ -85,13 +84,12 @@ public class MoveGenerator {
             maxBack++;
         }
 
-        // Try all possible starting positions
         for (int back = 0; back <= maxBack; back++) {
             int startRow = anchorRow - (direction == Direction.DOWN ? back : 0);
             int startCol = anchorCol - (direction == Direction.ACROSS ? back : 0);
             extendWord(board, startRow, startCol, startRow, startCol, direction,
                     new ArrayList<>(toCharList(rack)), "",
-                    new ArrayList<>(), ruleset, results);
+                    new ArrayList<>(), ruleset, gameConfig, results);
         }
     }
 
@@ -99,10 +97,11 @@ public class MoveGenerator {
                              int row, int col, Direction direction,
                              List<Character> remainingRack, String currentWord,
                              List<Character> tilesUsed, Ruleset ruleset,
-                             List<Move> results) {
+                             GameConfig gameConfig, List<Move> results) {
         if (row < 0 || row >= BoardState.SIZE || col < 0 || col >= BoardState.SIZE) {
-            // Word has reached the edge — validate if long enough
-            if (currentWord.length() >= 2) tryAddMove(board, startRow, startCol, direction, currentWord, tilesUsed, ruleset, results);
+            if (currentWord.length() >= 2) {
+                tryAddMove(board, startRow, startCol, direction, currentWord, tilesUsed, ruleset, gameConfig, results);
+            }
             return;
         }
 
@@ -111,14 +110,12 @@ public class MoveGenerator {
         int nextCol = col + (direction == Direction.ACROSS ? 1 : 0);
 
         if (current != null && !current.isEmpty()) {
-            // Use the existing letter on the board
             String nextWord = currentWord + current.getLetter();
             if (wordListEngine.isValidPrefix(nextWord, ruleset)) {
                 extendWord(board, startRow, startCol, nextRow, nextCol, direction,
-                        remainingRack, nextWord, new ArrayList<>(tilesUsed), ruleset, results);
+                        remainingRack, nextWord, new ArrayList<>(tilesUsed), ruleset, gameConfig, results);
             }
         } else {
-            // Try each tile in the rack
             for (int i = 0; i < remainingRack.size(); i++) {
                 char tile = remainingRack.get(i);
                 List<Character> candidates = tile == '_' ? blankCandidates() : List.of(tile);
@@ -132,17 +129,14 @@ public class MoveGenerator {
                     List<Character> newTilesUsed = new ArrayList<>(tilesUsed);
                     newTilesUsed.add(tile);
 
-                    // Validate cross-word at this position
                     if (!isCrossWordValid(board, row, col, letter, direction, ruleset)) continue;
 
-                    // Recurse to next position
                     extendWord(board, startRow, startCol, nextRow, nextCol, direction,
-                            newRack, nextWord, newTilesUsed, ruleset, results);
+                            newRack, nextWord, newTilesUsed, ruleset, gameConfig, results);
 
-                    // Also stop here if word is valid and long enough
                     if (nextWord.length() >= 2 && wordListEngine.isValidWord(nextWord, ruleset)
                             && mustPassThroughAnchor(board, startRow, startCol, row, col, direction)) {
-                        tryAddMove(board, startRow, startCol, direction, nextWord, newTilesUsed, ruleset, results);
+                        tryAddMove(board, startRow, startCol, direction, nextWord, newTilesUsed, ruleset, gameConfig, results);
                     }
                 }
             }
@@ -152,10 +146,6 @@ public class MoveGenerator {
     private boolean isCrossWordValid(BoardState board, int row, int col, char letter,
                                       Direction mainDirection, Ruleset ruleset) {
         Direction perp = mainDirection == Direction.ACROSS ? Direction.DOWN : Direction.ACROSS;
-        StringBuilder crossWord = new StringBuilder();
-        crossWord.append(letter);
-
-        // Scan backwards in perpendicular direction
         StringBuilder before = new StringBuilder();
         int r = row - (perp == Direction.DOWN ? 1 : 0);
         int c = col - (perp == Direction.ACROSS ? 1 : 0);
@@ -167,7 +157,6 @@ public class MoveGenerator {
             c -= (perp == Direction.ACROSS ? 1 : 0);
         }
 
-        // Scan forwards
         StringBuilder after = new StringBuilder();
         r = row + (perp == Direction.DOWN ? 1 : 0);
         c = col + (perp == Direction.ACROSS ? 1 : 0);
@@ -185,7 +174,6 @@ public class MoveGenerator {
 
     private boolean mustPassThroughAnchor(BoardState board, int startRow, int startCol,
                                            int row, int col, Direction direction) {
-        // The word must cover at least one anchor square or existing tile
         for (int i = startRow; i <= row; i++) {
             for (int j = startCol; j <= col; j++) {
                 Cell cell = board.getCell(i, j);
@@ -198,10 +186,10 @@ public class MoveGenerator {
 
     private void tryAddMove(BoardState board, int startRow, int startCol, Direction direction,
                              String word, List<Character> tilesUsed, Ruleset ruleset,
-                             List<Move> results) {
+                             GameConfig gameConfig, List<Move> results) {
         if (!wordListEngine.isValidWord(word, ruleset)) return;
 
-        int score = calculateScore(board, startRow, startCol, direction, word, tilesUsed.size());
+        int score = calculateScore(board, startRow, startCol, direction, word, tilesUsed.size(), gameConfig);
         results.add(Move.builder()
                 .word(word)
                 .startRow(startRow)
@@ -213,7 +201,8 @@ public class MoveGenerator {
     }
 
     private int calculateScore(BoardState board, int startRow, int startCol,
-                                Direction direction, String word, int tilesFromRack) {
+                                Direction direction, String word, int tilesFromRack,
+                                GameConfig gameConfig) {
         int score = 0;
         int wordMultiplier = 1;
 
@@ -223,11 +212,11 @@ public class MoveGenerator {
             Cell cell = board.getCell(row, col);
 
             char letter = word.charAt(i);
-            int letterValue = letterValue(letter);
+            int letterValue = letterValue(letter, gameConfig);
 
             if (cell != null && cell.isEmpty()) {
-                // New tile — apply premium square
-                SquareType squareType = BoardState.standardSquareType(row, col);
+                // New tile — use the square type read from the image
+                SquareType squareType = cell.getSquareType() != null ? cell.getSquareType() : SquareType.STANDARD;
                 switch (squareType) {
                     case DOUBLE_LETTER -> score += letterValue * 2;
                     case TRIPLE_LETTER -> score += letterValue * 3;
@@ -243,15 +232,20 @@ public class MoveGenerator {
         score *= wordMultiplier;
 
         if (tilesFromRack == RACK_SIZE) {
-            score += BINGO_BONUS;
+            int bingoBonus = (gameConfig != null && gameConfig.getBingoBonus() != null)
+                    ? gameConfig.getBingoBonus() : DEFAULT_BINGO_BONUS;
+            score += bingoBonus;
         }
 
         return score;
     }
 
-    private int letterValue(char c) {
-        if (c < 'A' || c > 'Z') return 0;
-        return LETTER_VALUES[c - 'A'];
+    private int letterValue(char c, GameConfig gameConfig) {
+        char upper = Character.toUpperCase(c);
+        if (gameConfig != null && gameConfig.getLetterValues() != null) {
+            return gameConfig.getLetterValues().getOrDefault(String.valueOf(upper), 0);
+        }
+        return DEFAULT_LETTER_VALUES.getOrDefault(upper, 0);
     }
 
     private List<Character> toCharList(char[] chars) {

@@ -1,11 +1,14 @@
 package com.scrabble.controller;
 
+import com.scrabble.model.AnalyseBoardRequest;
 import com.scrabble.model.AnalysisResponse;
+import com.scrabble.model.ExtractResponse;
+import com.scrabble.model.GameConfig;
 import com.scrabble.model.Ruleset;
 import com.scrabble.service.AnalysisService;
-import jakarta.validation.constraints.NotBlank;
+import com.scrabble.service.GameConfigService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,28 +23,32 @@ import org.springframework.web.multipart.MultipartFile;
 public class AnalysisController {
 
     private final AnalysisService analysisService;
+    private final GameConfigService gameConfigService;
 
     /**
-     * Analyse a Scrabble board image and return the top 5 move suggestions.
-     *
-     * @param image   the board image (JPEG or PNG)
-     * @param tiles   the player's rack — 1-7 uppercase letters, '_' for blank tiles
-     * @param ruleset US or UK
+     * Step 1 — extract board state and rack tiles from an image.
      */
-    @PostMapping(value = "/analyse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<AnalysisResponse> analyse(
-            @RequestPart("image") MultipartFile image,
-            @RequestPart("tiles")
-            @NotBlank
-            @Pattern(regexp = "[A-Z_]{1,7}", message = "Tiles must be 1-7 uppercase letters or underscores for blanks")
-            String tiles,
-            @RequestPart("ruleset")
-            @NotNull
-            String ruleset) {
+    @PostMapping(value = "/extract", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ExtractResponse> extract(
+            @RequestPart("image") @NotNull MultipartFile image,
+            @RequestPart(value = "imageType", required = false) String imageType,
+            @RequestPart(value = "gameConfigId", required = false) String gameConfigId) {
 
-        Ruleset rulesetEnum = Ruleset.valueOf(ruleset.toUpperCase());
-        AnalysisResponse response = analysisService.analyse(image, tiles, rulesetEnum);
-        return ResponseEntity.ok(response);
+        String effectiveType = (imageType != null && !imageType.isBlank()) ? imageType : "DIGITAL";
+        return ResponseEntity.ok(analysisService.extract(image, effectiveType, gameConfigId));
+    }
+
+    /**
+     * Step 2 — generate move suggestions from a confirmed board state.
+     */
+    @PostMapping(value = "/analyse/board", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<AnalysisResponse> analyseBoard(@RequestBody @Valid AnalyseBoardRequest request) {
+        return ResponseEntity.ok(analysisService.analyseFromBoard(request));
+    }
+
+    @GetMapping("/game-configs")
+    public ResponseEntity<java.util.List<GameConfig>> gameConfigs() {
+        return ResponseEntity.ok(gameConfigService.getAll());
     }
 
     @GetMapping("/health")
