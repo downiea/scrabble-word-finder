@@ -5,6 +5,7 @@ import GameSelector from './components/GameSelector'
 import TileInput from './components/TileInput'
 import RulesetSelector from './components/RulesetSelector'
 import SuggestionList from './components/SuggestionList'
+import CropEditor from './components/CropEditor'
 import { fetchGameConfigs, extractBoard, analyseBoard } from './services/api'
 
 const SIZE = 15
@@ -71,6 +72,9 @@ export default function App() {
   const [ruleset, setRuleset] = useState('US')
   const [selectedCell, setSelectedCell] = useState(null)
 
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null)
+  const [showCropEditor, setShowCropEditor] = useState(false)
+
   const [analysing, setAnalysing] = useState(false)
   const [analyseError, setAnalyseError] = useState(null)
   const [suggestions, setSuggestions] = useState(null)
@@ -92,6 +96,9 @@ export default function App() {
     setSquareTypes(emptySquareTypes())
     setTiles('')
     setWarnings([])
+    setShowCropEditor(false)
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+    setImagePreviewUrl(URL.createObjectURL(file))
 
     try {
       const result = await extractBoard(file, imageType, gameConfigId)
@@ -158,6 +165,13 @@ export default function App() {
     }
   }
 
+  function handleCropsSaved(boardCrop, tilesCrop) {
+    setGameConfigs(prev => prev.map(c =>
+      c.id === gameConfigId ? { ...c, boardCrop, tilesCrop } : c
+    ))
+    setShowCropEditor(false)
+  }
+
   function handleBack() {
     setStep(1)
     setSuggestions(null)
@@ -190,6 +204,30 @@ export default function App() {
               onImageSelected={handleExtract}
               onImageTypeChange={setImageType}
             />
+
+            {imagePreviewUrl && (
+              <div className="crop-section">
+                <button
+                  type="button"
+                  className="crop-toggle-btn"
+                  onClick={() => setShowCropEditor(v => !v)}
+                >
+                  {showCropEditor ? '▲ Hide crop editor' : '✂ Configure crop regions'}
+                </button>
+                {showCropEditor && (() => {
+                  const cfg = gameConfigs.find(c => c.id === gameConfigId)
+                  return (
+                    <CropEditor
+                      imageUrl={imagePreviewUrl}
+                      gameConfigId={gameConfigId}
+                      initialBoardCrop={cfg?.boardCrop ?? null}
+                      initialTilesCrop={cfg?.tilesCrop ?? null}
+                      onSaved={handleCropsSaved}
+                    />
+                  )
+                })()}
+              </div>
+            )}
 
             {extracting && (
               <div className="inline-loading">
@@ -234,11 +272,28 @@ export default function App() {
       {step === 2 && (
         <main className="app-main two-col">
           <section className="board-panel">
-            <BoardGrid cells={grid} squareTypes={squareTypes} readOnly />
+            <BoardGrid
+              cells={grid}
+              squareTypes={squareTypes}
+              highlightMove={suggestions?.[0]}
+              readOnly
+            />
           </section>
 
           <section className="results-panel">
             <button className="back-btn" onClick={handleBack}>← Back</button>
+            {tiles && (
+              <div className="rack-display">
+                <span className="rack-label">Your tiles</span>
+                <div className="tile-display">
+                  {tiles.split('').map((letter, i) => (
+                    <span key={i} className="tile">
+                      {letter === '_' ? <em>blank</em> : letter}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             {suggestions && <SuggestionList suggestions={suggestions} />}
           </section>
         </main>

@@ -17,13 +17,26 @@ const SQ_CSS = {
  * Props:
  *   cells        — 2D array [row][col] of letter strings or null
  *   squareTypes  — 2D array [row][col] of SquareType strings (STANDARD, DOUBLE_LETTER, etc.)
- *                  If not provided, all squares render as STANDARD
+ *   highlightMove — { word, startRow, startCol, direction } — overlays the suggested word in green
  *   selectedCell — {row, col} or null
  *   onCellClick  — (row, col) => void
  *   onKeyDown    — (e) => void
  *   readOnly     — bool
  */
-export default function BoardGrid({ cells, squareTypes, selectedCell, onCellClick, onKeyDown, readOnly = false }) {
+export default function BoardGrid({ cells, squareTypes, highlightMove, selectedCell, onCellClick, onKeyDown, readOnly = false }) {
+  // Build a lookup of highlighted cells from the move suggestion
+  const highlightedCells = {}
+  if (highlightMove) {
+    const { word, startRow, startCol, direction } = highlightMove
+    for (let i = 0; i < word.length; i++) {
+      const r = startRow + (direction === 'DOWN' ? i : 0)
+      const c = startCol + (direction === 'ACROSS' ? i : 0)
+      // Only highlight cells that are new (not already on the board)
+      if (!cells?.[r]?.[c]) {
+        highlightedCells[`${r},${c}`] = word[i]
+      }
+    }
+  }
   const trapRef = useRef(null)
 
   useEffect(() => {
@@ -51,6 +64,7 @@ export default function BoardGrid({ cells, squareTypes, selectedCell, onCellClic
 
             {Array.from({ length: SIZE }, (_, col) => {
               const letter = cells?.[row]?.[col] ?? null
+              const highlightLetter = highlightedCells[`${row},${col}`] ?? null
               const sqType = squareTypes?.[row]?.[col] ?? 'STANDARD'
               const sqClass = SQ_CSS[sqType] ?? 'sq-std'
               const isSelected = selectedCell?.row === row && selectedCell?.col === col
@@ -58,12 +72,15 @@ export default function BoardGrid({ cells, squareTypes, selectedCell, onCellClic
 
               let cellClass = `board-cell ${sqClass}`
               if (letter) cellClass += ' occupied'
+              if (highlightLetter) cellClass += ' suggested'
               if (isSelected) cellClass += ' selected'
               if (!readOnly) cellClass += ' interactive'
 
               const sqLabel = sqType !== 'STANDARD'
                 ? sqType.replace('DOUBLE_LETTER', '2L').replace('TRIPLE_LETTER', '3L').replace('DOUBLE_WORD', '2W').replace('TRIPLE_WORD', '3W')
                 : null
+
+              const displayLetter = letter ?? highlightLetter
 
               return (
                 <div
@@ -72,8 +89,8 @@ export default function BoardGrid({ cells, squareTypes, selectedCell, onCellClic
                   onClick={() => !readOnly && onCellClick(row, col)}
                   title={sqType !== 'STANDARD' ? sqType.replace(/_/g, ' ') : undefined}
                 >
-                  {letter ? (
-                    <span className="cell-letter">{letter}</span>
+                  {displayLetter ? (
+                    <span className="cell-letter">{displayLetter}</span>
                   ) : isCenter ? (
                     <span className="cell-star">★</span>
                   ) : sqLabel ? (

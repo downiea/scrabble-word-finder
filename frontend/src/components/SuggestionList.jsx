@@ -1,5 +1,7 @@
 import React from 'react'
 
+const COL_LABELS = 'ABCDEFGHIJKLMNO'
+
 const RANK_LABELS = {
   1: 'Best Move',
   2: '2nd Choice',
@@ -25,7 +27,7 @@ export default function SuggestionList({ suggestions }) {
           </div>
           <div className="suggestion-detail">
             <span className="placement">
-              {s.direction === 'ACROSS' ? 'Across' : 'Down'} from row {s.startRow + 1}, col {s.startCol + 1}
+              {s.direction === 'ACROSS' ? 'Across' : 'Down'} from {COL_LABELS[s.startCol]}{s.startRow + 1}
             </span>
             <span className="score-breakdown">
               Raw: {s.rawScore} pts

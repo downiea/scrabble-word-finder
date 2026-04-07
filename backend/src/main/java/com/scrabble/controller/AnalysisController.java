@@ -5,6 +5,7 @@ import com.scrabble.model.AnalysisResponse;
 import com.scrabble.model.ExtractResponse;
 import com.scrabble.model.GameConfig;
 import com.scrabble.model.Ruleset;
+import com.scrabble.model.UpdateCropsRequest;
 import com.scrabble.service.AnalysisService;
 import com.scrabble.service.GameConfigService;
 import jakarta.validation.Valid;
@@ -49,6 +50,13 @@ public class AnalysisController {
     @GetMapping("/game-configs")
     public ResponseEntity<java.util.List<GameConfig>> gameConfigs() {
         return ResponseEntity.ok(gameConfigService.getAll());
+    }
+
+    @PatchMapping("/game-configs/{id}/crops")
+    public ResponseEntity<GameConfig> updateCrops(@PathVariable String id,
+                                                   @RequestBody UpdateCropsRequest request) {
+        gameConfigService.updateCrops(id, request.getBoardCrop(), request.getTilesCrop());
+        return ResponseEntity.ok(gameConfigService.getById(id));
     }
 
     @GetMapping("/health")

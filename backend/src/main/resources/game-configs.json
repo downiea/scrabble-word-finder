@@ -184,37 +184,84 @@
     "boardSize": 15,
     "multiplierHint": "Multiplier squares are labelled 2L (double letter), 3L (triple letter), 2W (double word), 3W (triple word)",
     "bingoBonus": 40,
+    "rowOffset": -1,
+    "colOffset": 0,
     "letterValues": {
       "A":1,"B":4,"C":3,"D":2,"E":1,"F":4,"G":4,"H":3,"I":1,"J":10,"K":6,"L":2,"M":3,
       "N":1,"O":1,"P":3,"Q":10,"R":1,"S":1,"T":1,"U":2,"V":6,"W":5,"X":8,"Y":4,"Z":10
     },
     "boardLayout": [
-      {"row":0,"col":3,"squareType":"TRIPLE_WORD"},{"row":0,"col":11,"squareType":"TRIPLE_WORD"},
-      {"row":3,"col":0,"squareType":"TRIPLE_WORD"},{"row":3,"col":14,"squareType":"TRIPLE_WORD"},
-      {"row":11,"col":0,"squareType":"TRIPLE_WORD"},{"row":11,"col":14,"squareType":"TRIPLE_WORD"},
-      {"row":14,"col":3,"squareType":"TRIPLE_WORD"},{"row":14,"col":11,"squareType":"TRIPLE_WORD"},
-      {"row":1,"col":1,"squareType":"DOUBLE_WORD"},{"row":1,"col":13,"squareType":"DOUBLE_WORD"},
-      {"row":2,"col":2,"squareType":"DOUBLE_WORD"},{"row":2,"col":12,"squareType":"DOUBLE_WORD"},
-      {"row":7,"col":7,"squareType":"DOUBLE_WORD"},
-      {"row":12,"col":2,"squareType":"DOUBLE_WORD"},{"row":12,"col":12,"squareType":"DOUBLE_WORD"},
-      {"row":13,"col":1,"squareType":"DOUBLE_WORD"},{"row":13,"col":13,"squareType":"DOUBLE_WORD"},
-      {"row":0,"col":6,"squareType":"TRIPLE_LETTER"},{"row":0,"col":8,"squareType":"TRIPLE_LETTER"},
-      {"row":2,"col":4,"squareType":"TRIPLE_LETTER"},{"row":2,"col":10,"squareType":"TRIPLE_LETTER"},
-      {"row":4,"col":2,"squareType":"TRIPLE_LETTER"},{"row":4,"col":12,"squareType":"TRIPLE_LETTER"},
-      {"row":6,"col":0,"squareType":"TRIPLE_LETTER"},{"row":6,"col":14,"squareType":"TRIPLE_LETTER"},
-      {"row":8,"col":0,"squareType":"TRIPLE_LETTER"},{"row":8,"col":14,"squareType":"TRIPLE_LETTER"},
-      {"row":10,"col":2,"squareType":"TRIPLE_LETTER"},{"row":10,"col":12,"squareType":"TRIPLE_LETTER"},
-      {"row":12,"col":4,"squareType":"TRIPLE_LETTER"},{"row":12,"col":10,"squareType":"TRIPLE_LETTER"},
-      {"row":14,"col":6,"squareType":"TRIPLE_LETTER"},{"row":14,"col":8,"squareType":"TRIPLE_LETTER"},
-      {"row":0,"col":0,"squareType":"DOUBLE_LETTER"},{"row":0,"col":14,"squareType":"DOUBLE_LETTER"},
-      {"row":1,"col":5,"squareType":"DOUBLE_LETTER"},{"row":1,"col":9,"squareType":"DOUBLE_LETTER"},
-      {"row":3,"col":3,"squareType":"DOUBLE_LETTER"},{"row":3,"col":7,"squareType":"DOUBLE_LETTER"},{"row":3,"col":11,"squareType":"DOUBLE_LETTER"},
-      {"row":5,"col":1,"squareType":"DOUBLE_LETTER"},{"row":5,"col":5,"squareType":"DOUBLE_LETTER"},{"row":5,"col":9,"squareType":"DOUBLE_LETTER"},{"row":5,"col":13,"squareType":"DOUBLE_LETTER"},
-      {"row":7,"col":3,"squareType":"DOUBLE_LETTER"},{"row":7,"col":11,"squareType":"DOUBLE_LETTER"},
-      {"row":9,"col":1,"squareType":"DOUBLE_LETTER"},{"row":9,"col":5,"squareType":"DOUBLE_LETTER"},{"row":9,"col":9,"squareType":"DOUBLE_LETTER"},{"row":9,"col":13,"squareType":"DOUBLE_LETTER"},
-      {"row":11,"col":3,"squareType":"DOUBLE_LETTER"},{"row":11,"col":7,"squareType":"DOUBLE_LETTER"},{"row":11,"col":11,"squareType":"DOUBLE_LETTER"},
-      {"row":13,"col":5,"squareType":"DOUBLE_LETTER"},{"row":13,"col":9,"squareType":"DOUBLE_LETTER"},
-      {"row":14,"col":0,"squareType":"DOUBLE_LETTER"},{"row":14,"col":14,"squareType":"DOUBLE_LETTER"}
+      {"row":0,"col":0,"squareType":"TRIPLE_LETTER"},
+      {"row":0,"col":3,"squareType":"TRIPLE_WORD"},
+      {"row":0,"col":7,"squareType":"DOUBLE_LETTER"},
+      {"row":0,"col":11,"squareType":"TRIPLE_WORD"},
+      {"row":0,"col":14,"squareType":"TRIPLE_LETTER"},
+
+      {"row":1,"col":1,"squareType":"DOUBLE_WORD"},
+      {"row":1,"col":6,"squareType":"TRIPLE_LETTER"},
+      {"row":1,"col":8,"squareType":"TRIPLE_LETTER"},
+      {"row":1,"col":13,"squareType":"DOUBLE_WORD"},
+
+      {"row":2,"col":4,"squareType":"DOUBLE_LETTER"},
+      {"row":2,"col":10,"squareType":"DOUBLE_WORD"},
+
+      {"row":3,"col":0,"squareType":"TRIPLE_WORD"},
+      {"row":3,"col":3,"squareType":"DOUBLE_LETTER"},
+      {"row":3,"col":7,"squareType":"DOUBLE_WORD"},
+      {"row":3,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":3,"col":14,"squareType":"TRIPLE_WORD"},
+
+      {"row":4,"col":2,"squareType":"DOUBLE_LETTER"},
+      {"row":4,"col":5,"squareType":"TRIPLE_LETTER"},
+      {"row":4,"col":9,"squareType":"TRIPLE_LETTER"},
+      {"row":4,"col":12,"squareType":"DOUBLE_LETTER"},
+
+      {"row":5,"col":4,"squareType":"TRIPLE_LETTER"},
+      {"row":5,"col":7,"squareType":"DOUBLE_LETTER"},
+      {"row":5,"col":10,"squareType":"TRIPLE_LETTER"},
+     
+
+      {"row":6,"col":1,"squareType":"TRIPLE_LETTER"},
+      {"row":6,"col":13,"squareType":"TRIPLE_LETTER"},
+
+      {"row":7,"col":0,"squareType":"DOUBLE_LETTER"},
+      {"row":7,"col":3,"squareType":"TRIPLE_WORD"},
+      {"row":7,"col":5,"squareType":"DOUBLE_LETTER"},
+      {"row":7,"col":9,"squareType":"DOUBLE_LETTER"},
+      {"row":7,"col":11,"squareType":"DOUBLE_WORD"},
+      {"row":7,"col":14,"squareType":"DOUBLE_LETTER"},
+
+      {"row":8,"col":1,"squareType":"TRIPLE_LETTER"},
+      {"row":8,"col":13,"squareType":"TRIPLE_LETTER"},
+
+      {"row":9,"col":4,"squareType":"TRIPLE_LETTER"},
+      {"row":9,"col":7,"squareType":"DOUBLE_LETTER"},
+      {"row":9,"col":10,"squareType":"TRIPLE_LETTER"},
+
+      {"row":10,"col":2,"squareType":"DOUBLE_LETTER"},
+      {"row":10,"col":5,"squareType":"TRIPLE_LETTER"},
+      {"row":10,"col":9,"squareType":"TRIPLE_LETTER"},
+      {"row":10,"col":12,"squareType":"DOUBLE_LETTER"},
+
+      {"row":11,"col":0,"squareType":"TRIPLE_WORD"},
+      {"row":11,"col":3,"squareType":"DOUBLE_LETTER"},
+      {"row":11,"col":7,"squareType":"DOUBLE_WORD"},
+      {"row":11,"col":11,"squareType":"DOUBLE_LETTER"},
+      {"row":11,"col":14,"squareType":"TRIPLE_WORD"},
+
+      {"row":12,"col":4,"squareType":"DOUBLE_LETTER"},
+      {"row":12,"col":10,"squareType":"DOUBLE_WORD"},
+
+      {"row":13,"col":1,"squareType":"DOUBLE_WORD"},
+      {"row":13,"col":6,"squareType":"TRIPLE_LETTER"},
+      {"row":13,"col":8,"squareType":"TRIPLE_LETTER"},
+      {"row":13,"col":13,"squareType":"DOUBLE_WORD"},
+
+      {"row":14,"col":0,"squareType":"TRIPLE_LETTER"},
+      {"row":14,"col":3,"squareType":"TRIPLE_WORD"},
+      {"row":14,"col":7,"squareType":"DOUBLE_LETTER"},
+      {"row":14,"col":11,"squareType":"TRIPLE_WORD"},
+      {"row":14,"col":14,"squareType":"TRIPLE_LETTER"}
     ]
   },
   {

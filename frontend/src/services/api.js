@@ -1,5 +1,18 @@
 const API_BASE = '/api'
 
+export async function saveGameConfigCrops(gameConfigId, boardCrop, tilesCrop) {
+  const response = await fetch(`${API_BASE}/game-configs/${encodeURIComponent(gameConfigId)}/crops`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ boardCrop, tilesCrop }),
+  })
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Failed to save crops (${response.status}): ${errorText}`)
+  }
+  return response.json()
+}
+
 export async function fetchGameConfigs() {
   const response = await fetch(`${API_BASE}/game-configs`)
   if (!response.ok) throw new Error('Failed to load game configs')

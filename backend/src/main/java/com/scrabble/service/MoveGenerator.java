@@ -134,7 +134,16 @@ public class MoveGenerator {
                     extendWord(board, startRow, startCol, nextRow, nextCol, direction,
                             newRack, nextWord, newTilesUsed, ruleset, gameConfig, results);
 
-                    if (nextWord.length() >= 2 && wordListEngine.isValidWord(nextWord, ruleset)
+                    // Only submit the word here if the cell immediately after is empty —
+                    // if there's an existing tile there, the word continues and "nextWord"
+                    // would be incomplete (e.g. submitting "GO" when "GOJ" is the full word).
+                    boolean nextCellEmpty = nextRow < 0 || nextRow >= BoardState.SIZE
+                            || nextCol < 0 || nextCol >= BoardState.SIZE
+                            || board.getCell(nextRow, nextCol) == null
+                            || board.getCell(nextRow, nextCol).isEmpty();
+
+                    if (nextWord.length() >= 2 && nextCellEmpty
+                            && wordListEngine.isValidWord(nextWord, ruleset)
                             && mustPassThroughAnchor(board, startRow, startCol, row, col, direction)) {
                         tryAddMove(board, startRow, startCol, direction, nextWord, newTilesUsed, ruleset, gameConfig, results);
                     }
