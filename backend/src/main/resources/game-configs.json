@@ -125,7 +125,7 @@
       {"row":6,"col":13,"squareType":"TRIPLE_LETTER"},
 
       {"row":7,"col":0,"squareType":"DOUBLE_LETTER"},
-      {"row":7,"col":3,"squareType":"TRIPLE_WORD"},
+      {"row":7,"col":3,"squareType":"DOUBLE_WORD"},
       {"row":7,"col":5,"squareType":"DOUBLE_LETTER"},
       {"row":7,"col":9,"squareType":"DOUBLE_LETTER"},
       {"row":7,"col":11,"squareType":"DOUBLE_WORD"},

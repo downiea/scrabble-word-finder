@@ -11,6 +11,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,12 +32,17 @@ public class GameConfigService {
     public void load() {
         try {
             var resource = new ClassPathResource("game-configs.json");
-            // Resolve a writable path if the resource is on the filesystem (dev mode)
+            // Prefer source path so writes survive Gradle's processResources overwrite
             configFilePath = null;
-            try {
-                configFilePath = resource.getFile().toPath();
-            } catch (Exception ignored) {
-                log.info("game-configs.json is not on the filesystem — crop changes will not be persisted");
+            Path sourcePath = Paths.get("src/main/resources/game-configs.json");
+            if (sourcePath.toFile().exists()) {
+                configFilePath = sourcePath;
+            } else {
+                try {
+                    configFilePath = resource.getFile().toPath();
+                } catch (Exception ignored) {
+                    log.info("game-configs.json is not on the filesystem — crop changes will not be persisted");
+                }
             }
             configs = new ArrayList<>(objectMapper.readValue(resource.getInputStream(), new TypeReference<>() {}));
             configById = configs.stream().collect(Collectors.toMap(GameConfig::getId, Function.identity()));

@@ -107,8 +107,8 @@ public class ImageEnhancementService {
         float cellW = (float) w / BOARD_SIZE;
         float cellH = (float) h / BOARD_SIZE;
 
-        // Grid lines — white, semi-transparent
-        g.setColor(new Color(255, 255, 255, 170));
+        // Grid lines — black, semi-transparent
+        g.setColor(new Color(0, 0, 0, 160));
         g.setStroke(new BasicStroke(1.5f));
         for (int i = 1; i < BOARD_SIZE; i++) {
             int x = Math.round(i * cellW);
@@ -118,7 +118,7 @@ public class ImageEnhancementService {
         }
 
         // Border
-        g.setColor(new Color(255, 255, 255, 200));
+        g.setColor(new Color(0, 0, 0, 200));
         g.setStroke(new BasicStroke(2f));
         g.drawRect(0, 0, w - 1, h - 1);
 
@@ -146,11 +146,12 @@ public class ImageEnhancementService {
 
     private void drawLabel(Graphics2D g, FontMetrics fm, String text, float cx, float cy) {
         float x = cx - fm.stringWidth(text) / 2f;
-        // Shadow
-        g.setColor(new Color(0, 0, 0, 190));
+        // White halo for readability over any background
+        g.setColor(new Color(255, 255, 255, 200));
         g.drawString(text, x + 1, cy + 1);
-        // Fill
-        g.setColor(new Color(255, 255, 255, 230));
+        g.drawString(text, x - 1, cy - 1);
+        // Black text
+        g.setColor(new Color(0, 0, 0, 230));
         g.drawString(text, x, cy);
     }
 }
