@@ -23,6 +23,8 @@ public class OpenAIVisionProvider implements VisionProvider {
     private static final String API_URL       = "https://api.openai.com/v1/chat/completions";
     private static final String MODEL_FULL    = "gpt-4o";
     private static final String MODEL_SIMPLE  = "gpt-4o-mini";
+    private static final int    MAX_TOKENS_FULL   = 16000;
+    private static final int    MAX_TOKENS_SIMPLE = 256;
 
     @Value("${openai.api.key:}")
     private String apiKey;
@@ -38,12 +40,12 @@ public class OpenAIVisionProvider implements VisionProvider {
 
     @Override
     public String callVision(byte[] imageBytes, String mediaType, String prompt) throws Exception {
-        return post(MODEL_FULL, imageBytes, mediaType, prompt, 4096);
+        return post(MODEL_FULL, imageBytes, mediaType, prompt, MAX_TOKENS_FULL);
     }
 
     @Override
     public String callVisionSimple(byte[] imageBytes, String mediaType, String prompt) throws Exception {
-        return post(MODEL_SIMPLE, imageBytes, mediaType, prompt, 256);
+        return post(MODEL_SIMPLE, imageBytes, mediaType, prompt, MAX_TOKENS_SIMPLE);
     }
 
     private String post(String model, byte[] imageBytes, String mediaType, String prompt, int maxTokens) throws Exception {

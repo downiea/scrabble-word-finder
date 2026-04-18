@@ -25,14 +25,17 @@ public class BoardVisionService {
     private final Map<String, VisionProvider> providers;
     private final ObjectMapper objectMapper;
     private final ImageCropService imageCropService;
+    private final ImageEnhancementService imageEnhancementService;
 
     public BoardVisionService(List<VisionProvider> providerList,
                               ObjectMapper objectMapper,
-                              ImageCropService imageCropService) {
+                              ImageCropService imageCropService,
+                              ImageEnhancementService imageEnhancementService) {
         this.providers = providerList.stream()
                 .collect(Collectors.toMap(VisionProvider::getName, Function.identity()));
         this.objectMapper = objectMapper;
         this.imageCropService = imageCropService;
+        this.imageEnhancementService = imageEnhancementService;
         log.info("Vision providers registered: {}", this.providers.keySet());
     }
 
@@ -52,7 +55,8 @@ public class BoardVisionService {
                     : (gameConfig != null ? gameConfig.getTilesCrop() : null);
 
             byte[] boardBytes   = boardCrop != null ? imageCropService.crop(rawBytes, boardCrop) : rawBytes;
-            String boardMedia   = boardCrop != null ? "image/png" : mediaType;
+            boardBytes          = imageEnhancementService.enhanceForVision(boardBytes);
+            String boardMedia   = "image/png"; // always PNG after enhancement
 
             boolean layoutKnown    = gameConfig != null && gameConfig.getBoardLayout() != null && !gameConfig.getBoardLayout().isEmpty();
             boolean isPhysical     = "PHYSICAL".equalsIgnoreCase(imageType);
@@ -145,14 +149,12 @@ public class BoardVisionService {
                 Focus only on reading the letters that have been played on the board.
 
                 IMPORTANT — coordinate system:
-                - The board grid itself is the only reference. Ignore all surrounding UI (score panels,
-                  headers, footers, player names, rack area) — these are NOT part of the grid.
-                - The board is a 15x15 grid. Row 0 is the FIRST row of the board grid (topmost board row),
-                  column 0 is the FIRST column of the board grid (leftmost board column).
-                - If the board image shows row/column labels (numbers or letters along the edges),
-                  use those as your ground truth: row label 1 = row 0, label 2 = row 1, etc.
-                  Column label A = col 0, B = col 1, etc.
-                - Do NOT count any UI elements above or beside the board as rows or columns.
+                - A 15×15 grid has been drawn over this image. The white lines divide the board into
+                  exactly 225 cells. Column labels A–O run along the top; row labels 1–15 run down the left.
+                - Use these grid lines as your ground truth for cell positions — do not estimate or count
+                  tiles visually. Each cell between adjacent grid lines is exactly one board position.
+                - Row 0 = the row labelled 1, column 0 = the column labelled A.
+                - Ignore all UI elements outside the grid (score panels, headers, player names).
 
                 %s
 
@@ -190,10 +192,13 @@ public class BoardVisionService {
 
                 Game type hint: %s
 
+                A 15×15 grid has been drawn over the image with white lines. Column labels A–O are
+                along the top; row labels 1–15 are on the left. Use the grid lines as your precise
+                position reference — do not estimate cell positions visually. Row 0 = label 1, col 0 = label A.
+
                 Extract:
                 1. BOARD STATE — the grid of played tiles AND the multiplier type of every square.
-                   Row 0 is the top row, column 0 is the leftmost column.
-                   Ignore all UI chrome, menus, score panels outside the board grid.
+                   Ignore all UI chrome, menus, score panels outside the grid lines.
                 2. SQUARE TYPES — read from the image (STANDARD, DOUBLE_LETTER, TRIPLE_LETTER, DOUBLE_WORD, TRIPLE_WORD).
                 3. %s
 
@@ -227,7 +232,9 @@ public class BoardVisionService {
 
                 Game type hint: %s
 
-                The image may have perspective distortion or shadows. Focus on the board grid only.
+                A 15×15 grid has been drawn over the image. Use the white grid lines as your position
+                reference — column A–O along the top, rows 1–15 on the left. Row 0 = label 1, col 0 = label A.
+                The image may have perspective distortion or shadows, but the grid lines correct for this.
 
                 Extract:
                 1. BOARD STATE — grid of played tiles AND multiplier type of every square.
