@@ -32,8 +32,15 @@ public class GameConfig {
     private List<BoardLayoutEntry> boardLayout;
 
     /**
+     * Vision API provider to use for this game config.
+     * Null means use the global default from application.properties (vision.provider).
+     * Supported values: "claude", "openai"
+     */
+    private String visionProvider;
+
+    /**
      * Crop region for the board area. When set, only this portion of the image
-     * is sent to Claude for board reading.
+     * is sent to the vision provider for board reading.
      */
     private CropRegion boardCrop;
 

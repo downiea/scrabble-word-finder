@@ -3,36 +3,38 @@ package com.scrabble.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scrabble.model.*;
-import lombok.RequiredArgsConstructor;
+import com.scrabble.service.vision.VisionProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class BoardVisionService {
 
-    private static final String CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
-    private static final String MODEL = "claude-opus-4-6";
+    @Value("${vision.provider:claude}")
+    private String defaultProviderName;
 
-    @Value("${anthropic.api.key}")
-    private String apiKey;
-
-    private final RestTemplate restTemplate;
+    private final Map<String, VisionProvider> providers;
     private final ObjectMapper objectMapper;
     private final ImageCropService imageCropService;
+
+    public BoardVisionService(List<VisionProvider> providerList,
+                              ObjectMapper objectMapper,
+                              ImageCropService imageCropService) {
+        this.providers = providerList.stream()
+                .collect(Collectors.toMap(VisionProvider::getName, Function.identity()));
+        this.objectMapper = objectMapper;
+        this.imageCropService = imageCropService;
+        log.info("Vision providers registered: {}", this.providers.keySet());
+    }
 
     public VisionResult extractBoardState(MultipartFile imageFile, String imageType, GameConfig gameConfig) {
         return extractBoardState(imageFile, imageType, gameConfig, null, null);
@@ -44,38 +46,33 @@ public class BoardVisionService {
             byte[] rawBytes = imageFile.getBytes();
             String mediaType = imageFile.getContentType() != null ? imageFile.getContentType() : "image/jpeg";
 
-            // Determine effective crops (request overrides > config)
             CropRegion boardCrop = boardCropOverride != null ? boardCropOverride
                     : (gameConfig != null ? gameConfig.getBoardCrop() : null);
             CropRegion tilesCrop = tilesCropOverride != null ? tilesCropOverride
                     : (gameConfig != null ? gameConfig.getTilesCrop() : null);
 
-            // Crop board image if region defined
-            byte[] boardBytes = boardCrop != null ? imageCropService.crop(rawBytes, boardCrop) : rawBytes;
-            String boardMediaType = boardCrop != null ? "image/png" : mediaType;
-            String boardBase64 = Base64.getEncoder().encodeToString(boardBytes);
+            byte[] boardBytes   = boardCrop != null ? imageCropService.crop(rawBytes, boardCrop) : rawBytes;
+            String boardMedia   = boardCrop != null ? "image/png" : mediaType;
 
-            boolean layoutKnown = gameConfig != null
-                    && gameConfig.getBoardLayout() != null
-                    && !gameConfig.getBoardLayout().isEmpty();
-            boolean isPhysical = "PHYSICAL".equalsIgnoreCase(imageType);
+            boolean layoutKnown    = gameConfig != null && gameConfig.getBoardLayout() != null && !gameConfig.getBoardLayout().isEmpty();
+            boolean isPhysical     = "PHYSICAL".equalsIgnoreCase(imageType);
+            boolean separateTiles  = tilesCrop != null;
 
-            // If tilesCrop is defined, tiles will come from a separate call — suppress rack reading in board prompt
-            boolean separateTilesCall = tilesCrop != null;
             String prompt = layoutKnown
-                    ? buildLettersOnlyPrompt(gameConfig, separateTilesCall)
-                    : (isPhysical ? buildPhysicalPrompt(gameConfig, separateTilesCall)
-                                  : buildDigitalPrompt(gameConfig, separateTilesCall));
+                    ? buildLettersOnlyPrompt(gameConfig, separateTiles)
+                    : (isPhysical ? buildPhysicalPrompt(gameConfig, separateTiles)
+                                  : buildDigitalPrompt(gameConfig, separateTiles));
 
-            Map<String, Object> requestBody = buildRequestBody(boardBase64, boardMediaType, prompt);
-            String boardResponse = callClaude(requestBody);
-            VisionResult result = parseResponse(boardResponse, gameConfig);
+            VisionProvider provider = resolveProvider(gameConfig);
+            log.info("Using vision provider: {} for gameConfig: {}", provider.getName(),
+                    gameConfig != null ? gameConfig.getId() : "unknown");
 
-            // Separate tiles call if tilesCrop is set
-            if (separateTilesCall) {
+            String boardResponse = provider.callVision(boardBytes, boardMedia, prompt);
+            VisionResult result  = parseResponse(boardResponse);
+
+            if (separateTiles) {
                 byte[] tilesBytes = imageCropService.crop(rawBytes, tilesCrop);
-                String tilesBase64 = Base64.getEncoder().encodeToString(tilesBytes);
-                String extractedTiles = extractTilesFromImage(tilesBase64);
+                String extractedTiles = extractTilesFromImage(tilesBytes, provider);
                 result.setExtractedTiles(extractedTiles);
             }
 
@@ -86,33 +83,38 @@ public class BoardVisionService {
         }
     }
 
-    private String extractTilesFromImage(String base64Image) {
+    // ── Provider resolution ───────────────────────────────────────────────────
+
+    private VisionProvider resolveProvider(GameConfig gameConfig) {
+        // Game config can override the global default
+        String name = (gameConfig != null && gameConfig.getVisionProvider() != null)
+                ? gameConfig.getVisionProvider()
+                : defaultProviderName;
+
+        VisionProvider provider = providers.get(name);
+        if (provider == null) {
+            log.warn("Unknown vision provider '{}', falling back to claude", name);
+            provider = providers.get("claude");
+        }
+        if (!provider.isAvailable()) {
+            log.warn("Provider '{}' is not available (API key missing?), falling back to claude", provider.getName());
+            provider = providers.get("claude");
+        }
+        return provider;
+    }
+
+    // ── Tiles-only extraction ─────────────────────────────────────────────────
+
+    private String extractTilesFromImage(byte[] tilesBytes, VisionProvider provider) {
         String prompt = """
                 These are a player's Scrabble tiles. Read them left to right.
                 Return ONLY valid JSON with no other text: {"tiles": "AEINRST"}
                 Use uppercase letters A-Z. Use _ for a blank tile.
                 If you cannot read the tiles, return: {"tiles": null}
                 """;
-
-        Map<String, Object> requestBody = Map.of(
-                "model", MODEL,
-                "max_tokens", 256,
-                "messages", List.of(Map.of(
-                        "role", "user",
-                        "content", List.of(
-                                Map.of("type", "image", "source", Map.of(
-                                        "type", "base64", "media_type", "image/png", "data", base64Image)),
-                                Map.of("type", "text", "text", prompt)
-                        )
-                ))
-        );
-
         try {
-            String responseBody = callClaude(requestBody);
-            JsonNode root = objectMapper.readTree(responseBody);
-            String content = findTextBlock(root);
-            if (content == null) return null;
-            content = content.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
+            String response = provider.callVisionSimple(tilesBytes, "image/png", prompt);
+            String content = response.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
             if (!content.startsWith("{")) {
                 int s = content.indexOf('{'), e = content.lastIndexOf('}');
                 if (s != -1 && e > s) content = content.substring(s, e + 1);
@@ -128,6 +130,8 @@ public class BoardVisionService {
             return null;
         }
     }
+
+    // ── Prompts ───────────────────────────────────────────────────────────────
 
     private String buildLettersOnlyPrompt(GameConfig config, boolean suppressRack) {
         String imageContext = config != null ? "This is a " + config.getName() + " game screenshot." : "This is a Scrabble-style game screenshot.";
@@ -181,7 +185,6 @@ public class BoardVisionService {
         String rackInstruction = suppressRack
                 ? "The player's rack tiles are NOT in this image — set extractedTiles to null."
                 : "Also read the player's rack tiles if visible (typically shown below or beside the board).";
-
         return """
                 Analyse this screenshot from a digital Scrabble-style game.
 
@@ -219,7 +222,6 @@ public class BoardVisionService {
         String rackInstruction = suppressRack
                 ? "The player's rack tiles are NOT in this image — set extractedTiles to null."
                 : "Also read the player's physical tile rack if visible. Read left to right.";
-
         return """
                 Analyse this photograph of a physical Scrabble-style board.
 
@@ -245,58 +247,20 @@ public class BoardVisionService {
                 """.formatted(multiplierContext, rackInstruction);
     }
 
-    private Map<String, Object> buildRequestBody(String base64Image, String mediaType, String prompt) {
-        return Map.of(
-                "model", MODEL,
-                "max_tokens", 16000,
-                "thinking", Map.of("type", "enabled", "budget_tokens", 5000),
-                "messages", List.of(Map.of(
-                        "role", "user",
-                        "content", List.of(
-                                Map.of("type", "image", "source", Map.of(
-                                        "type", "base64", "media_type", mediaType, "data", base64Image)),
-                                Map.of("type", "text", "text", prompt)
-                        )
-                ))
-        );
-    }
+    // ── Response parsing ──────────────────────────────────────────────────────
 
-    private String callClaude(Map<String, Object> requestBody) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("x-api-key", apiKey);
-        headers.set("anthropic-version", "2023-06-01");
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-        return restTemplate.postForEntity(CLAUDE_API_URL, request, String.class).getBody();
-    }
-
-    private String findTextBlock(JsonNode root) {
-        for (JsonNode block : root.path("content")) {
-            if ("text".equals(block.path("type").asText())) {
-                return block.path("text").asText();
-            }
-        }
-        return null;
-    }
-
-    private VisionResult parseResponse(String responseBody, GameConfig gameConfig) throws Exception {
-        JsonNode root = objectMapper.readTree(responseBody);
-        String content = findTextBlock(root);
-        if (content == null) {
-            log.error("No text block in Claude response: {}", responseBody);
-            throw new RuntimeException("Claude returned no text content");
-        }
-        log.debug("Claude raw response: {}", content.length() > 500 ? content.substring(0, 500) + "..." : content);
+    private VisionResult parseResponse(String content) throws Exception {
+        log.debug("Vision response: {}", content.length() > 500 ? content.substring(0, 500) + "..." : content);
 
         content = content.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
         if (!content.startsWith("{")) {
             int start = content.indexOf('{');
-            int end = content.lastIndexOf('}');
+            int end   = content.lastIndexOf('}');
             if (start != -1 && end != -1 && end > start) {
                 content = content.substring(start, end + 1);
             } else {
-                log.error("Claude did not return JSON. Response: {}", content);
-                throw new RuntimeException("Claude did not return a valid JSON board analysis. Response: "
+                log.error("Vision provider did not return JSON. Response: {}", content);
+                throw new RuntimeException("Vision provider did not return valid JSON. Response: "
                         + content.substring(0, Math.min(200, content.length())));
             }
         }
@@ -319,19 +283,14 @@ public class BoardVisionService {
 
             JsonNode sqNode = cellNode.path("squareType");
             if (!sqNode.isMissingNode() && !sqNode.isNull()) {
-                try {
-                    cell.setSquareType(SquareType.valueOf(sqNode.asText()));
-                } catch (IllegalArgumentException e) {
-                    cell.setSquareType(SquareType.STANDARD);
-                }
+                try { cell.setSquareType(SquareType.valueOf(sqNode.asText())); }
+                catch (IllegalArgumentException e) { cell.setSquareType(SquareType.STANDARD); }
             }
 
             JsonNode letterNode = cellNode.path("letter");
             if (!letterNode.isNull() && !letterNode.isMissingNode()) {
                 String letterStr = letterNode.asText();
-                if (!letterStr.isBlank()) {
-                    cell.setLetter(letterStr.toUpperCase().charAt(0));
-                }
+                if (!letterStr.isBlank()) cell.setLetter(letterStr.toUpperCase().charAt(0));
             }
         }
 
