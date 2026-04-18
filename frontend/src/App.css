@@ -627,6 +627,89 @@ label {
   text-decoration: underline;
 }
 
+/* ── Extract button ─────────────────────────────────────────────────── */
+
+.extract-btn {
+  width: 100%;
+  padding: 12px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.extract-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.extract-btn:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 3px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.reextract-btn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.reextract-btn:hover {
+  color: #444;
+  text-decoration: underline;
+}
+
+/* ── Crop status ─────────────────────────────────────────────────────── */
+
+.crop-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8f8f8;
+  border: 1px solid #e8e8e8;
+}
+
+.crop-status-indicator {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.crop-status-indicator.configured {
+  color: #1a6b2a;
+}
+
+.crop-status-indicator.unconfigured {
+  color: #888;
+}
+
+.crop-status-hint {
+  font-size: 0.78rem;
+  color: #999;
+}
+
 /* ── Crop editor ─────────────────────────────────────────────────────── */
 
 .crop-section {
@@ -656,6 +739,55 @@ label {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.crop-editor-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.crop-editor-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1a6b2a;
+}
+
+.crop-editor-subtitle {
+  font-size: 0.78rem;
+  color: #888;
+}
+
+.drop-zone.compact {
+  min-height: auto;
+  padding: 12px 16px;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-loaded {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.file-name {
+  font-size: 0.85rem;
+  color: #444;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.upload-btn.sm {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .crop-editor-controls {

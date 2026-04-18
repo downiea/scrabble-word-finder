@@ -2,6 +2,8 @@ package com.scrabble.model;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 /**
  * Result returned by the Claude Vision step — the parsed board state plus
@@ -9,6 +11,8 @@ import lombok.Data;
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class VisionResult {
 
     private BoardState boardState;

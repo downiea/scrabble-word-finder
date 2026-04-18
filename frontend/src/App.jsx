@@ -62,6 +62,12 @@ export default function App() {
   const [gameConfigs, setGameConfigs] = useState([])
   const [gameConfigId, setGameConfigId] = useState('nyt_crossplay')
   const [imageType, setImageType] = useState('DIGITAL')
+
+  // Image state — file selection is separate from extraction
+  const [imageFile, setImageFile] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [boardExtracted, setBoardExtracted] = useState(false)
+
   const [extracting, setExtracting] = useState(false)
   const [extractError, setExtractError] = useState(null)
   const [warnings, setWarnings] = useState([])
@@ -71,9 +77,6 @@ export default function App() {
   const [tiles, setTiles] = useState('')
   const [ruleset, setRuleset] = useState('US')
   const [selectedCell, setSelectedCell] = useState(null)
-
-  const [imagePreviewUrl, setImagePreviewUrl] = useState(null)
-  const [showCropEditor, setShowCropEditor] = useState(false)
 
   const [analysing, setAnalysing] = useState(false)
   const [analyseError, setAnalyseError] = useState(null)
@@ -89,25 +92,37 @@ export default function App() {
       .catch(() => {})
   }, [])
 
-  async function handleExtract(file) {
+  // Step 1a — image selected, no API call yet
+  function handleFileSelected(file, url) {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(url)
+    setImageFile(file)
+    setBoardExtracted(false)
+    setGrid(emptyGrid())
+    setTiles('')
+    setWarnings([])
+    setExtractError(null)
+    setSelectedCell(null)
+    const config = gameConfigs.find(c => c.id === gameConfigId)
+    if (config) setSquareTypes(squareTypesFromConfig(config))
+  }
+
+  // Step 1b — send image to Claude Vision
+  async function handleExtract() {
+    if (!imageFile) return
     setExtractError(null)
     setExtracting(true)
     setGrid(emptyGrid())
-    setSquareTypes(emptySquareTypes())
-    setTiles('')
     setWarnings([])
-    setShowCropEditor(false)
-    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
-    setImagePreviewUrl(URL.createObjectURL(file))
 
     try {
-      const result = await extractBoard(file, imageType, gameConfigId)
+      const result = await extractBoard(imageFile, imageType, gameConfigId)
       const { letters, squareTypes: sq } = gridsFromBoardState(result.boardState)
       setGrid(letters)
-      // Backend overlays config layout server-side, so always use what it returns
       setSquareTypes(sq)
       if (result.extractedTiles) setTiles(result.extractedTiles)
       if (result.warnings?.length) setWarnings(result.warnings)
+      setBoardExtracted(true)
     } catch (err) {
       setExtractError(err.message)
     } finally {
@@ -148,6 +163,7 @@ export default function App() {
     }
   }, [selectedCell])
 
+  // Step 2 — move analysis
   async function handleAnalyse() {
     if (!tiles || tiles.length < 1) { setAnalyseError('Please enter your tiles.'); return }
     setAnalyseError(null)
@@ -169,7 +185,6 @@ export default function App() {
     setGameConfigs(prev => prev.map(c =>
       c.id === gameConfigId ? { ...c, boardCrop, tilesCrop } : c
     ))
-    setShowCropEditor(false)
   }
 
   function handleBack() {
@@ -177,6 +192,10 @@ export default function App() {
     setSuggestions(null)
     setAnalyseError(null)
   }
+
+  // Current game config
+  const currentConfig = gameConfigs.find(c => c.id === gameConfigId)
+  const hasSavedCrop = !!(currentConfig?.boardCrop || currentConfig?.tilesCrop)
 
   return (
     <div className="app">
@@ -193,78 +212,109 @@ export default function App() {
 
       {step === 1 && (
         <main className="app-main two-col">
+          {/* ── Left panel ── */}
           <section className="input-panel">
-            <GameSelector configs={gameConfigs} value={gameConfigId} onChange={id => {
-            setGameConfigId(id)
-            const config = gameConfigs.find(c => c.id === id)
-            if (config) setSquareTypes(squareTypesFromConfig(config))
-          }} />
+            <GameSelector
+              configs={gameConfigs}
+              value={gameConfigId}
+              onChange={id => {
+                setGameConfigId(id)
+                const config = gameConfigs.find(c => c.id === id)
+                if (config) setSquareTypes(squareTypesFromConfig(config))
+              }}
+            />
             <RulesetSelector value={ruleset} onChange={setRuleset} />
+
             <BoardUpload
-              onImageSelected={handleExtract}
+              onImageSelected={handleFileSelected}
               onImageTypeChange={setImageType}
             />
 
-            {imagePreviewUrl && (
-              <div className="crop-section">
+            {/* Crop status — shown once an image is loaded */}
+            {imageFile && !boardExtracted && (
+              <div className="crop-status">
+                {hasSavedCrop
+                  ? <span className="crop-status-indicator configured">✓ Crop regions configured</span>
+                  : <span className="crop-status-indicator unconfigured">No crop regions set</span>
+                }
+                <span className="crop-status-hint">
+                  {hasSavedCrop
+                    ? 'Adjust the regions on the right if needed, then extract.'
+                    : 'Optionally draw crop regions on the image to improve accuracy.'}
+                </span>
+              </div>
+            )}
+
+            {/* Extract button — shown once image loaded, before extraction */}
+            {imageFile && !boardExtracted && (
+              <>
                 <button
-                  type="button"
-                  className="crop-toggle-btn"
-                  onClick={() => setShowCropEditor(v => !v)}
+                  className="extract-btn"
+                  onClick={handleExtract}
+                  disabled={extracting}
                 >
-                  {showCropEditor ? '▲ Hide crop editor' : '✂ Configure crop regions'}
+                  {extracting ? (
+                    <><span className="btn-spinner" /> Reading board…</>
+                  ) : (
+                    'Extract Board'
+                  )}
                 </button>
-                {showCropEditor && (() => {
-                  const cfg = gameConfigs.find(c => c.id === gameConfigId)
-                  return (
-                    <CropEditor
-                      imageUrl={imagePreviewUrl}
-                      gameConfigId={gameConfigId}
-                      initialBoardCrop={cfg?.boardCrop ?? null}
-                      initialTilesCrop={cfg?.tilesCrop ?? null}
-                      onSaved={handleCropsSaved}
-                    />
-                  )
-                })()}
-              </div>
+                {extractError && <p className="error-message">{extractError}</p>}
+              </>
             )}
 
-            {extracting && (
-              <div className="inline-loading">
-                <div className="spinner-sm" />
-                <span>Reading board with Claude Vision…</span>
-              </div>
+            {/* Post-extraction controls */}
+            {boardExtracted && (
+              <>
+                <TileInput value={tiles} onChange={setTiles} />
+
+                {warnings.length > 0 && (
+                  <div className="warnings">
+                    <p className="warnings-title">Low-confidence reads — check these cells:</p>
+                    <ul>{warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+                  </div>
+                )}
+
+                <p className="board-hint">
+                  Click a cell to select it, then type a letter or press Delete to clear.
+                </p>
+
+                <button className="analyse-btn" onClick={handleAnalyse} disabled={analysing}>
+                  {analysing ? 'Analysing…' : 'Find Best Moves'}
+                </button>
+
+                {analyseError && <p className="error-message">{analyseError}</p>}
+
+                <button
+                  className="reextract-btn"
+                  onClick={() => { setBoardExtracted(false); setGrid(emptyGrid()); setTiles('') }}
+                >
+                  ↩ Re-extract image
+                </button>
+              </>
             )}
-            {extractError && <p className="error-message">{extractError}</p>}
-
-            <TileInput value={tiles} onChange={setTiles} />
-
-            {warnings.length > 0 && (
-              <div className="warnings">
-                <p className="warnings-title">Low-confidence reads — check these cells:</p>
-                <ul>{warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
-              </div>
-            )}
-
-            <p className="board-hint">
-              Click a cell to select it, then type a letter or press Delete to clear.
-            </p>
-
-            <button className="analyse-btn" onClick={handleAnalyse} disabled={analysing}>
-              {analysing ? 'Analysing…' : 'Find Best Moves'}
-            </button>
-
-            {analyseError && <p className="error-message">{analyseError}</p>}
           </section>
 
+          {/* ── Right panel ── */}
           <section className="board-panel">
-            <BoardGrid
-              cells={grid}
-              squareTypes={squareTypes}
-              selectedCell={selectedCell}
-              onCellClick={handleCellClick}
-              onKeyDown={handleKeyDown}
-            />
+            {imageFile && !boardExtracted ? (
+              <CropEditor
+                key={gameConfigId}
+                imageUrl={previewUrl}
+                gameConfigId={gameConfigId}
+                initialBoardCrop={currentConfig?.boardCrop ?? null}
+                initialTilesCrop={currentConfig?.tilesCrop ?? null}
+                onSaved={handleCropsSaved}
+              />
+            ) : (
+              <BoardGrid
+                cells={grid}
+                squareTypes={squareTypes}
+                selectedCell={selectedCell}
+                onCellClick={handleCellClick}
+                onKeyDown={handleKeyDown}
+              />
+            )}
           </section>
         </main>
       )}

@@ -280,9 +280,6 @@ public class BoardVisionService {
     }
 
     private VisionResult parseResponse(String responseBody, GameConfig gameConfig) throws Exception {
-        int rowOffset = gameConfig != null ? gameConfig.getRowOffset() : 0;
-        int colOffset = gameConfig != null ? gameConfig.getColOffset() : 0;
-
         JsonNode root = objectMapper.readTree(responseBody);
         String content = findTextBlock(root);
         if (content == null) {
@@ -314,8 +311,8 @@ public class BoardVisionService {
         }
 
         for (JsonNode cellNode : parsed.path("cells")) {
-            int row = cellNode.path("row").asInt() + rowOffset;
-            int col = cellNode.path("col").asInt() + colOffset;
+            int row = cellNode.path("row").asInt();
+            int col = cellNode.path("col").asInt();
             if (row < 0 || row >= BoardState.SIZE || col < 0 || col >= BoardState.SIZE) continue;
 
             Cell cell = boardState.getCell(row, col);

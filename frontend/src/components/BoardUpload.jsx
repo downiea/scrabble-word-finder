@@ -3,14 +3,14 @@ import React, { useRef, useState } from 'react'
 export default function BoardUpload({ onImageSelected, onImageTypeChange }) {
   const libraryInputRef = useRef(null)
   const cameraInputRef = useRef(null)
-  const [preview, setPreview] = useState(null)
-  const [dragOver, setDragOver] = useState(false)
+  const [fileName, setFileName] = useState(null)
   const [imageType, setImageType] = useState('DIGITAL')
 
   function handleFile(file) {
     if (!file || !file.type.startsWith('image/')) return
-    setPreview(URL.createObjectURL(file))
-    onImageSelected(file)
+    setFileName(file.name)
+    const url = URL.createObjectURL(file)
+    onImageSelected(file, url)
   }
 
   function handleChange(e) {
@@ -19,7 +19,6 @@ export default function BoardUpload({ onImageSelected, onImageTypeChange }) {
 
   function handleDrop(e) {
     e.preventDefault()
-    setDragOver(false)
     handleFile(e.dataTransfer.files[0])
   }
 
@@ -27,10 +26,6 @@ export default function BoardUpload({ onImageSelected, onImageTypeChange }) {
     setImageType(type)
     onImageTypeChange(type)
   }
-
-  const hint = imageType === 'DIGITAL'
-    ? 'Screenshot from a Scrabble app (e.g. Scrabble GO, Words With Friends)'
-    : 'Photo of a physical Scrabble board'
 
   return (
     <div className="board-upload">
@@ -53,34 +48,32 @@ export default function BoardUpload({ onImageSelected, onImageTypeChange }) {
         </button>
       </div>
 
-      {preview ? (
-        <div
-          className="drop-zone"
-          onClick={() => libraryInputRef.current.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-        >
-          <img src={preview} alt="Board preview" className="board-preview" />
-        </div>
-      ) : (
-        <div
-          className={`drop-zone ${dragOver ? 'drag-over' : ''}`}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-        >
-          <p className="drop-hint">{hint}</p>
-          <div className="upload-actions">
-            <button type="button" className="upload-btn" onClick={() => cameraInputRef.current.click()}>
-              Take Photo
-            </button>
-            <button type="button" className="upload-btn" onClick={() => libraryInputRef.current.click()}>
-              Choose Image
+      <div
+        className="drop-zone compact"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={handleDrop}
+      >
+        {fileName ? (
+          <div className="file-loaded">
+            <span className="file-name">{fileName}</span>
+            <button type="button" className="upload-btn sm" onClick={() => libraryInputRef.current.click()}>
+              Change
             </button>
           </div>
-        </div>
-      )}
+        ) : (
+          <>
+            <div className="upload-actions">
+              <button type="button" className="upload-btn" onClick={() => cameraInputRef.current.click()}>
+                Take Photo
+              </button>
+              <button type="button" className="upload-btn" onClick={() => libraryInputRef.current.click()}>
+                Choose Image
+              </button>
+            </div>
+            <p className="drop-hint">or drag and drop</p>
+          </>
+        )}
+      </div>
 
       <input
         ref={libraryInputRef}

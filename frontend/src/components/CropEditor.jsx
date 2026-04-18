@@ -147,8 +147,20 @@ export default function CropEditor({ imageUrl, gameConfigId, initialBoardCrop, i
     }
   }
 
+  const hasSavedCrops = !!(initialBoardCrop || initialTilesCrop)
+
   return (
     <div className="crop-editor">
+      <div className="crop-editor-header">
+        <span className="crop-editor-title">
+          {hasSavedCrops ? '✓ Crop regions configured' : 'Configure crop regions (optional)'}
+        </span>
+        <span className="crop-editor-subtitle">
+          {hasSavedCrops
+            ? 'Saved regions are shown. Drag to adjust, then save.'
+            : 'Enable a region and drag to draw it over the relevant part of the image.'}
+        </span>
+      </div>
       <div className="crop-editor-controls">
         <label className="crop-toggle">
           <input type="checkbox" checked={boardEnabled} onChange={e => { setBoardEnabled(e.target.checked); setSaved(false) }} />
