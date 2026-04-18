@@ -19,20 +19,25 @@ public class AnalysisService {
     private final GameConfigService gameConfigService;
 
     /** Step 1 — vision only, no move generation. */
-    public ExtractResponse extract(MultipartFile image, String imageType, String gameConfigId) {
-        log.info("Extracting board state imageType={} gameConfigId={}", imageType, gameConfigId);
+    public ExtractResponse extract(MultipartFile image, String imageType, String gameConfigId, boolean debug) {
+        log.info("Extracting board state imageType={} gameConfigId={} debug={}", imageType, gameConfigId, debug);
         GameConfig gameConfig = gameConfigService.getById(gameConfigId != null ? gameConfigId : "unknown");
-        VisionResult visionResult = boardVisionService.extractBoardState(image, imageType, gameConfig);
+        VisionResult visionResult = boardVisionService.extractBoardState(image, imageType, gameConfig, null, null, debug);
 
         // Overlay known board layout — overrides whatever squareTypes Claude may have returned
         if (gameConfig.getBoardLayout() != null && !gameConfig.getBoardLayout().isEmpty()) {
             applyBoardLayout(visionResult.getBoardState(), gameConfig);
         }
 
+        String debugImage = null;
+        if (debug && visionResult.getDebugEnhancedImageBytes() != null) {
+            debugImage = java.util.Base64.getEncoder().encodeToString(visionResult.getDebugEnhancedImageBytes());
+        }
         return ExtractResponse.builder()
                 .boardState(visionResult.getBoardState())
                 .extractedTiles(visionResult.getExtractedTiles())
                 .warnings(visionResult.getWarnings() != null ? visionResult.getWarnings() : List.of())
+                .debugEnhancedImageBase64(debugImage)
                 .build();
     }
 

@@ -40,11 +40,11 @@ public class BoardVisionService {
     }
 
     public VisionResult extractBoardState(MultipartFile imageFile, String imageType, GameConfig gameConfig) {
-        return extractBoardState(imageFile, imageType, gameConfig, null, null);
+        return extractBoardState(imageFile, imageType, gameConfig, null, null, false);
     }
 
     public VisionResult extractBoardState(MultipartFile imageFile, String imageType, GameConfig gameConfig,
-                                           CropRegion boardCropOverride, CropRegion tilesCropOverride) {
+                                           CropRegion boardCropOverride, CropRegion tilesCropOverride, boolean debug) {
         try {
             byte[] rawBytes = imageFile.getBytes();
             String mediaType = imageFile.getContentType() != null ? imageFile.getContentType() : "image/jpeg";
@@ -56,7 +56,8 @@ public class BoardVisionService {
 
             byte[] boardBytes   = boardCrop != null ? imageCropService.crop(rawBytes, boardCrop) : rawBytes;
             boardBytes          = imageEnhancementService.enhanceForVision(boardBytes);
-            String boardMedia   = "image/png"; // always PNG after enhancement
+            String boardMedia   = "image/png";
+            byte[] debugBytes   = debug ? boardBytes : null;
 
             boolean layoutKnown    = gameConfig != null && gameConfig.getBoardLayout() != null && !gameConfig.getBoardLayout().isEmpty();
             boolean isPhysical     = "PHYSICAL".equalsIgnoreCase(imageType);
@@ -73,6 +74,7 @@ public class BoardVisionService {
 
             String boardResponse = provider.callVision(boardBytes, boardMedia, prompt);
             VisionResult result  = parseResponse(boardResponse);
+            result.setDebugEnhancedImageBytes(debugBytes);
 
             if (separateTiles) {
                 byte[] tilesBytes = imageCropService.crop(rawBytes, tilesCrop);

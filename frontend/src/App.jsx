@@ -82,6 +82,18 @@ export default function App() {
   const [analyseError, setAnalyseError] = useState(null)
   const [suggestions, setSuggestions] = useState(null)
 
+  const [devMode, setDevMode] = useState(() => localStorage.getItem('devMode') === 'true')
+  const [debugEnhancedImage, setDebugEnhancedImage] = useState(null)
+  const [showDebugImage, setShowDebugImage] = useState(false)
+
+  function toggleDevMode() {
+    setDevMode(prev => {
+      const next = !prev
+      localStorage.setItem('devMode', next)
+      return next
+    })
+  }
+
   useEffect(() => {
     fetchGameConfigs()
       .then(configs => {
@@ -116,12 +128,18 @@ export default function App() {
     setWarnings([])
 
     try {
-      const result = await extractBoard(imageFile, imageType, gameConfigId)
+      const result = await extractBoard(imageFile, imageType, gameConfigId, devMode)
       const { letters, squareTypes: sq } = gridsFromBoardState(result.boardState)
       setGrid(letters)
       setSquareTypes(sq)
       if (result.extractedTiles) setTiles(result.extractedTiles)
       if (result.warnings?.length) setWarnings(result.warnings)
+      if (result.debugEnhancedImageBase64) {
+        setDebugEnhancedImage(result.debugEnhancedImageBase64)
+        setShowDebugImage(true)
+      } else {
+        setDebugEnhancedImage(null)
+      }
       setBoardExtracted(true)
     } catch (err) {
       setExtractError(err.message)
@@ -202,6 +220,9 @@ export default function App() {
       <header className="app-header">
         <h1>Scrabble Word Finder</h1>
         <p>Upload your board, confirm the tiles, then get the best moves.</p>
+        <button className="dev-mode-toggle" onClick={toggleDevMode} title="Toggle developer mode">
+          {devMode ? '🔬 Dev mode on' : '🔬'}
+        </button>
       </header>
 
       <div className="step-indicator">
@@ -261,6 +282,22 @@ export default function App() {
                 </button>
                 {extractError && <p className="error-message">{extractError}</p>}
               </>
+            )}
+
+            {/* Debug: enhanced image panel */}
+            {devMode && boardExtracted && debugEnhancedImage && (
+              <div className="debug-panel">
+                <button className="debug-panel-toggle" onClick={() => setShowDebugImage(v => !v)}>
+                  {showDebugImage ? '▲ Hide enhanced image' : '▼ Show enhanced image sent to vision API'}
+                </button>
+                {showDebugImage && (
+                  <img
+                    src={`data:image/png;base64,${debugEnhancedImage}`}
+                    alt="Enhanced image sent to vision API"
+                    className="debug-enhanced-img"
+                  />
+                )}
+              </div>
             )}
 
             {/* Post-extraction controls */}

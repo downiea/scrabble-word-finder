@@ -33,10 +33,12 @@ public class AnalysisController {
     public ResponseEntity<ExtractResponse> extract(
             @RequestPart("image") @NotNull MultipartFile image,
             @RequestPart(value = "imageType", required = false) String imageType,
-            @RequestPart(value = "gameConfigId", required = false) String gameConfigId) {
+            @RequestPart(value = "gameConfigId", required = false) String gameConfigId,
+            @RequestPart(value = "debug", required = false) String debugParam) {
 
         String effectiveType = (imageType != null && !imageType.isBlank()) ? imageType : "DIGITAL";
-        return ResponseEntity.ok(analysisService.extract(image, effectiveType, gameConfigId));
+        boolean debug = "true".equalsIgnoreCase(debugParam);
+        return ResponseEntity.ok(analysisService.extract(image, effectiveType, gameConfigId, debug));
     }
 
     /**

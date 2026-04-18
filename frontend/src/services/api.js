@@ -22,11 +22,12 @@ export async function fetchGameConfigs() {
 /**
  * Step 1 — extract board state, square types, and rack tiles from an image.
  */
-export async function extractBoard(imageFile, imageType = 'DIGITAL', gameConfigId = 'unknown') {
+export async function extractBoard(imageFile, imageType = 'DIGITAL', gameConfigId = 'unknown', debug = false) {
   const formData = new FormData()
   formData.append('image', imageFile)
   formData.append('imageType', imageType)
   formData.append('gameConfigId', gameConfigId)
+  if (debug) formData.append('debug', 'true')
 
   const response = await fetch(`${API_BASE}/extract`, {
     method: 'POST',

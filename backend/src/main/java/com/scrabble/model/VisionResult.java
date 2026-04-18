@@ -24,4 +24,6 @@ public class VisionResult {
     private String extractedTiles;
 
     private java.util.List<String> warnings;
+    /** Enhanced image bytes sent to the vision API — only populated when debug=true. */
+    private byte[] debugEnhancedImageBytes;
 }
