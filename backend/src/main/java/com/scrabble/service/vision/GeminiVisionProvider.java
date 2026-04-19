@@ -21,7 +21,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class GeminiVisionProvider implements VisionProvider {
 
-    private static final String MODEL       = "gemini-2.0-flash";
+    private static final String MODEL       = "gemini-flash-latest";
     private static final String API_BASE    = "https://generativelanguage.googleapis.com/v1beta/models/";
     private static final int    MAX_TOKENS  = 2048;
 
