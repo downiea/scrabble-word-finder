@@ -154,34 +154,42 @@ public class BoardVisionService {
 
     private String buildOccupiedCellsPrompt() {
         return """
-                Look at this Scrabble board. A 15×15 grid is overlaid with:
-                - Column labels A–O along the top edge
-                - Row labels 1–15 along the left edge
-                - A small 2–3 character coordinate tag (e.g. "A1", "C7", "O15") in the top-left
-                  corner of EVERY cell — this tag appears on ALL cells, occupied or empty
+                Look at this Scrabble board. A 15×15 grid is overlaid on the image dividing it into
+                exactly 225 cells. Column labels A–O run along the top; row labels 1–15 run down the left.
 
-                Your task: identify every cell that has a PLAYER-PLACED LETTER TILE on it.
+                Your task: for EACH of the 225 cells, output 1 if a player tile is present, 0 if empty.
 
-                HOW TO IDENTIFY A PLAYER TILE — a tile has ALL of these:
+                HOW TO IDENTIFY A PLAYER TILE — a cell contains a tile if it shows:
                 - A solid coloured rectangular background (typically cream/tan/yellow or a bright colour)
-                - A single LARGE letter (A–Z) prominently in the centre
-                - A small point-value number (e.g. 1, 2, 3, 8, 10) usually in the bottom-right corner
+                - A single LARGE letter (A–Z) prominently displayed
+                - A small point-value number (e.g. 1, 2, 3, 8, 10) in the corner of the tile
 
-                IGNORE these — they are NOT player tiles:
-                - Empty bonus squares showing only "2L", "DL", "3L", "TL", "2W", "DW", "3W", "TW"
-                - The center star or decorative square
-                - The small coordinate tags (e.g. "A1") drawn in the top-left of every cell — these are
-                  overlay labels on the image and are present on BOTH empty and occupied cells; they do
-                  NOT indicate a tile
+                A cell is EMPTY (output 0) if it shows:
+                - Only a bonus label: "2L", "DL", "3L", "TL", "2W", "DW", "3W", "TW"
+                - A star, coloured square, or plain background with no tile piece on it
+                - A small coordinate tag in the corner (e.g. "A1") — this overlay appears on ALL cells
 
-                For each occupied cell, use the column (A–O top) and row (1–15 left) labels to determine
-                its position. Row 0 = labelled "1", col 0 = labelled "A".
+                Work row by row, top to bottom (row 1 first through row 15 last).
+                Within each row, go left to right (column A through column O).
 
-                Return ONLY valid JSON with no other text:
-                {"occupied": [[row, col], [row, col], ...]}
-
-                Example — tiles at B2 and H8: {"occupied": [[1,1],[7,7]]}
-                If the board is empty: {"occupied": []}
+                Return ONLY valid JSON with no other text — a list of 15 strings, each exactly 15 characters of '0' or '1':
+                {"grid": [
+                  "000000000000000",
+                  "000000100000000",
+                  "000001110000000",
+                  "000000100000000",
+                  "000000000000000",
+                  "000000000000000",
+                  "000000000000000",
+                  "000000000000000",
+                  "000000000000000",
+                  "000000000000000",
+                  "000000000000000",
+                  "000000000000000",
+                  "000000000000000",
+                  "000000000000000",
+                  "000000000000000"
+                ]}
                 """;
     }
 
@@ -195,12 +203,14 @@ public class BoardVisionService {
             }
             JsonNode parsed = objectMapper.readTree(content);
             List<int[]> result = new ArrayList<>();
-            for (JsonNode cell : parsed.path("occupied")) {
-                if (cell.isArray() && cell.size() == 2) {
-                    int row = cell.get(0).asInt();
-                    int col = cell.get(1).asInt();
-                    if (row >= 0 && row < BoardState.SIZE && col >= 0 && col < BoardState.SIZE) {
-                        result.add(new int[]{row, col});
+            JsonNode gridNode = parsed.path("grid");
+            if (!gridNode.isMissingNode() && gridNode.isArray()) {
+                for (int r = 0; r < Math.min(gridNode.size(), BoardState.SIZE); r++) {
+                    String rowStr = gridNode.get(r).asText();
+                    for (int c = 0; c < Math.min(rowStr.length(), BoardState.SIZE); c++) {
+                        if (rowStr.charAt(c) == '1') {
+                            result.add(new int[]{r, c});
+                        }
                     }
                 }
             }
