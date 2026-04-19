@@ -70,7 +70,7 @@ public class BoardVisionService {
             VisionResult result;
             if (layoutKnown) {
                 // Two-step: first identify occupied cells, then read their letters
-                result = twoStepExtract(boardBytes, boardMedia, gameConfig, provider);
+                result = twoStepExtract(boardBytes, boardMedia, gameConfig, provider, debug);
             } else {
                 String prompt = isPhysical
                         ? buildPhysicalPrompt(gameConfig, separateTiles)
@@ -103,11 +103,20 @@ public class BoardVisionService {
      * focuses the letter-reading pass on a small target set rather than all 225 cells.
      */
     private VisionResult twoStepExtract(byte[] boardBytes, String boardMedia,
-                                        GameConfig gameConfig, VisionProvider provider) throws Exception {
+                                        GameConfig gameConfig, VisionProvider provider, boolean debug) throws Exception {
         // Step 1 — which cells are occupied?
         String step1Response = provider.callVision(boardBytes, boardMedia, buildOccupiedCellsPrompt());
         List<int[]> occupied = parseOccupiedCells(step1Response);
-        log.info("Two-step extraction step 1: {} occupied cells found", occupied.size());
+
+        String occupiedStr = occupied.stream()
+                .map(c -> String.valueOf((char) ('A' + c[1])) + (c[0] + 1))
+                .collect(Collectors.joining(", "));
+        log.info("Two-step step 1: {} occupied cells: {}", occupied.size(), occupiedStr);
+
+        List<String> warnings = new ArrayList<>();
+        if (debug) {
+            warnings.add("[Step 1] " + occupied.size() + " tiles found: " + (occupiedStr.isEmpty() ? "(none)" : occupiedStr));
+        }
 
         BoardState boardState = initBoardStateFromLayout(gameConfig);
 
@@ -119,7 +128,7 @@ public class BoardVisionService {
 
         return VisionResult.builder()
                 .boardState(boardState)
-                .warnings(new ArrayList<>())
+                .warnings(warnings)
                 .build();
     }
 
@@ -148,19 +157,25 @@ public class BoardVisionService {
                 Look at this Scrabble board. A 15×15 grid is overlaid with:
                 - Column labels A–O along the top edge
                 - Row labels 1–15 along the left edge
-                - A small coordinate tag (e.g. "A1", "C7") in the top-left corner of EVERY cell
+                - A small 2–3 character coordinate tag (e.g. "A1", "C7", "O15") in the top-left
+                  corner of EVERY cell — this tag appears on ALL cells, occupied or empty
 
                 Your task: identify every cell that has a PLAYER-PLACED LETTER TILE on it.
 
-                A player tile is a solid coloured square/rectangle with a single LARGE letter on it.
+                HOW TO IDENTIFY A PLAYER TILE — a tile has ALL of these:
+                - A solid coloured rectangular background (typically cream/tan/yellow or a bright colour)
+                - A single LARGE letter (A–Z) prominently in the centre
+                - A small point-value number (e.g. 1, 2, 3, 8, 10) usually in the bottom-right corner
 
-                DO NOT include empty cells that show any of these — they are board markings, not tiles:
-                - Bonus labels: "2L", "DL", "3L", "TL", "2W", "DW", "3W", "TW"
-                - The center star symbol
-                - The small coordinate tags in the corners (e.g. "A1") — these are overlay labels
+                IGNORE these — they are NOT player tiles:
+                - Empty bonus squares showing only "2L", "DL", "3L", "TL", "2W", "DW", "3W", "TW"
+                - The center star or decorative square
+                - The small coordinate tags (e.g. "A1") drawn in the top-left of every cell — these are
+                  overlay labels on the image and are present on BOTH empty and occupied cells; they do
+                  NOT indicate a tile
 
-                Use the coordinate tag visible in each cell to determine its exact position.
-                Row 0 = row labelled "1", col 0 = column labelled "A".
+                For each occupied cell, use the column (A–O top) and row (1–15 left) labels to determine
+                its position. Row 0 = labelled "1", col 0 = labelled "A".
 
                 Return ONLY valid JSON with no other text:
                 {"occupied": [[row, col], [row, col], ...]}
