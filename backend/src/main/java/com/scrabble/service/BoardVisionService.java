@@ -9,9 +9,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -130,6 +135,9 @@ public class BoardVisionService {
 
         log.info("Grid transcription: {} tiles found", debugCells.size());
 
+        // Boundary check: verify cells at the edge of every word cluster
+        boundaryCheckPass(boardBytes, boardState, provider, debug, debugCells);
+
         List<String> warnings = new ArrayList<>();
         if (debug) {
             warnings.add("[Grid] " + debugCells.size() + " tiles: " + String.join(", ", debugCells));
@@ -159,6 +167,132 @@ public class BoardVisionService {
             }
         }
         return board;
+    }
+
+    // ── Boundary check pass ───────────────────────────────────────────────────
+
+    private static final String CELL_CHECK_PROMPT = """
+            This is a single cell cropped from a Scrabble board.
+            Does it contain a player-placed letter tile?
+
+            A tile is a solid coloured rectangular piece with a LARGE letter (A-Z) in the centre
+            and a small point-value number (e.g. 1, 3, 8, 10) in its corner.
+            An empty cell shows only a bonus label (2L, DL, 3W, TW), a star, or a plain background.
+
+            Reply with ONLY ONE character:
+            - The uppercase letter (A-Z) if a tile is present
+            - A period "." if the cell is empty
+
+            Nothing else. A single character only.
+            """;
+
+    private static final int[][] DIRS = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+
+    /**
+     * For every cell on the boundary between occupied and empty (both sides),
+     * crops the cell from the enhanced image and asks the vision provider to confirm
+     * whether a tile is present. Corrections are applied in-place to boardState.
+     * Runs all cell checks in parallel.
+     */
+    private void boundaryCheckPass(byte[] boardBytes, BoardState boardState,
+                                   VisionProvider provider, boolean debug, List<String> debugCells) {
+        BufferedImage boardImg;
+        try {
+            boardImg = ImageIO.read(new ByteArrayInputStream(boardBytes));
+            if (boardImg == null) { log.warn("Boundary check: could not read board image"); return; }
+        } catch (Exception e) {
+            log.warn("Boundary check: image read failed: {}", e.getMessage()); return;
+        }
+
+        int W = boardImg.getWidth();
+        int H = boardImg.getHeight();
+
+        boolean[][] occ = new boolean[BoardState.SIZE][BoardState.SIZE];
+        for (int r = 0; r < BoardState.SIZE; r++)
+            for (int c = 0; c < BoardState.SIZE; c++)
+                occ[r][c] = boardState.getCell(r, c).getLetter() != null;
+
+        // Include any cell touching a boundary between occupied and empty
+        List<int[]> zone = new ArrayList<>();
+        for (int r = 0; r < BoardState.SIZE; r++) {
+            for (int c = 0; c < BoardState.SIZE; c++) {
+                for (int[] d : DIRS) {
+                    int nr = r + d[0], nc = c + d[1];
+                    if (nr >= 0 && nr < BoardState.SIZE && nc >= 0 && nc < BoardState.SIZE
+                            && occ[nr][nc] != occ[r][c]) {
+                        zone.add(new int[]{r, c});
+                        break;
+                    }
+                }
+            }
+        }
+
+        log.info("Boundary check: verifying {} cells in parallel", zone.size());
+
+        BufferedImage imgRef = boardImg;
+        List<CompletableFuture<Void>> futures = zone.stream().map(cell ->
+            CompletableFuture.runAsync(() -> {
+                int r = cell[0], c = cell[1];
+                try {
+                    byte[] cellBytes = cropCell(imgRef, W, H, r, c);
+                    String raw = provider.callVisionSimple(cellBytes, "image/png", CELL_CHECK_PROMPT).trim();
+                    Character result = parseCellResponse(raw);
+                    if (result == null) return;
+
+                    Cell boardCell = boardState.getCell(r, c);
+                    if (result == '.') {
+                        if (boardCell.getLetter() != null) {
+                            log.info("Boundary check: removed false tile at ({},{}) was '{}'", r, c, boardCell.getLetter());
+                            boardCell.setLetter(null);
+                            if (debug) debugCells.removeIf(s -> s.startsWith(String.valueOf((char)('A'+c)) + (r+1) + "="));
+                        }
+                    } else {
+                        if (!result.equals(boardCell.getLetter())) {
+                            log.info("Boundary check: corrected ({},{}) '{}' -> '{}'", r, c, boardCell.getLetter(), result);
+                            boardCell.setLetter(result);
+                            if (debug) {
+                                String tag = String.valueOf((char) ('A' + c)) + (r + 1) + "=" + result;
+                                debugCells.removeIf(s -> s.startsWith(String.valueOf((char)('A'+c)) + (r+1) + "="));
+                                debugCells.add(tag + "*");
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.debug("Boundary check cell ({},{}): {}", r, c, e.getMessage());
+                }
+            })
+        ).collect(Collectors.toList());
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        log.info("Boundary check complete");
+    }
+
+    private Character parseCellResponse(String response) {
+        if (response == null || response.isBlank()) return null;
+        String trimmed = response.trim();
+        if (trimmed.length() == 1) {
+            char ch = trimmed.charAt(0);
+            if (ch == '.') return '.';
+            if (Character.isLetter(ch)) return Character.toUpperCase(ch);
+        }
+        if (trimmed.equalsIgnoreCase("empty") || trimmed.startsWith(".")) return '.';
+        for (String word : trimmed.split("\\s+")) {
+            if (word.length() == 1 && Character.isLetter(word.charAt(0))) return Character.toUpperCase(word.charAt(0));
+        }
+        return null;
+    }
+
+    private byte[] cropCell(BufferedImage img, int W, int H, int r, int c) throws Exception {
+        int x = (int) Math.round((double) c * W / BoardState.SIZE);
+        int y = (int) Math.round((double) r * H / BoardState.SIZE);
+        int w = Math.max(1, (int) Math.round((double) (c + 1) * W / BoardState.SIZE) - x);
+        int h = Math.max(1, (int) Math.round((double) (r + 1) * H / BoardState.SIZE) - y);
+        w = Math.min(w, W - x);
+        h = Math.min(h, H - y);
+        BufferedImage cell = img.getSubimage(x, y, w, h);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(cell, "png", out);
+        return out.toByteArray();
     }
 
     private String buildGridTranscriptionPrompt() {
