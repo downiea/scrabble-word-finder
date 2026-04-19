@@ -69,8 +69,8 @@ public class BoardVisionService {
 
             VisionResult result;
             if (layoutKnown) {
-                // Two-step: first identify occupied cells, then read their letters
-                result = twoStepExtract(boardBytes, boardMedia, gameConfig, provider, debug);
+                // Grid transcription: model outputs a 15×15 letter grid directly
+                result = gridTranscriptionExtract(boardBytes, boardMedia, gameConfig, provider, debug);
             } else {
                 String prompt = isPhysical
                         ? buildPhysicalPrompt(gameConfig, separateTiles)
@@ -94,36 +94,45 @@ public class BoardVisionService {
         }
     }
 
-    // ── Two-step extraction ───────────────────────────────────────────────────
+    // ── Grid transcription extraction ────────────────────────────────────────
 
     /**
-     * Step 1: ask the model which cells have player tiles (ignoring bonus labels).
-     * Step 2: ask the model to read the letter in each of those cells only.
-     * This eliminates confusion between bonus-square labels and played tiles, and
-     * focuses the letter-reading pass on a small target set rather than all 225 cells.
+     * Single-call approach: model outputs a 15×15 character grid directly.
+     * Each cell is a letter (A-Z) if a player tile is present, or '.' if empty.
+     * Coordinates are derived from array index — no coordinate translation by the model.
      */
-    private VisionResult twoStepExtract(byte[] boardBytes, String boardMedia,
-                                        GameConfig gameConfig, VisionProvider provider, boolean debug) throws Exception {
-        // Step 1 — which cells are occupied?
-        String step1Response = provider.callVision(boardBytes, boardMedia, buildOccupiedCellsPrompt());
-        List<int[]> occupied = parseOccupiedCells(step1Response);
+    private VisionResult gridTranscriptionExtract(byte[] boardBytes, String boardMedia,
+                                                  GameConfig gameConfig, VisionProvider provider, boolean debug) throws Exception {
+        String response = provider.callVision(boardBytes, boardMedia, buildGridTranscriptionPrompt());
 
-        String occupiedStr = occupied.stream()
-                .map(c -> String.valueOf((char) ('A' + c[1])) + (c[0] + 1))
-                .collect(Collectors.joining(", "));
-        log.info("Two-step step 1: {} occupied cells: {}", occupied.size(), occupiedStr);
+        String content = response.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
+        if (!content.startsWith("{")) {
+            int s = content.indexOf('{'), e = content.lastIndexOf('}');
+            if (s != -1 && e > s) content = content.substring(s, e + 1);
+        }
+
+        JsonNode parsed = objectMapper.readTree(content);
+        JsonNode rowsNode = parsed.path("rows");
+
+        BoardState boardState = initBoardStateFromLayout(gameConfig);
+        List<String> debugCells = new ArrayList<>();
+
+        for (int r = 0; r < Math.min(rowsNode.size(), BoardState.SIZE); r++) {
+            String rowStr = rowsNode.get(r).asText();
+            for (int c = 0; c < Math.min(rowStr.length(), BoardState.SIZE); c++) {
+                char ch = rowStr.charAt(c);
+                if (ch != '.' && Character.isLetter(ch)) {
+                    boardState.getCell(r, c).setLetter(ch);
+                    if (debug) debugCells.add(String.valueOf((char) ('A' + c)) + (r + 1) + "=" + ch);
+                }
+            }
+        }
+
+        log.info("Grid transcription: {} tiles found", debugCells.size());
 
         List<String> warnings = new ArrayList<>();
         if (debug) {
-            warnings.add("[Step 1] " + occupied.size() + " tiles found: " + (occupiedStr.isEmpty() ? "(none)" : occupiedStr));
-        }
-
-        BoardState boardState = initBoardStateFromLayout(gameConfig);
-
-        if (!occupied.isEmpty()) {
-            // Step 2 — read the letter in each occupied cell
-            String step2Response = provider.callVision(boardBytes, boardMedia, buildReadLettersPrompt(occupied));
-            applyLettersToBoard(step2Response, boardState);
+            warnings.add("[Grid] " + debugCells.size() + " tiles: " + String.join(", ", debugCells));
         }
 
         return VisionResult.builder()
@@ -152,132 +161,46 @@ public class BoardVisionService {
         return board;
     }
 
-    private String buildOccupiedCellsPrompt() {
+    private String buildGridTranscriptionPrompt() {
         return """
-                Look at this Scrabble board. A 15×15 grid is overlaid on the image dividing it into
-                exactly 225 cells. Column labels A–O run along the top; row labels 1–15 run down the left.
+                Transcribe this Scrabble board as a plain-text letter grid.
 
-                Your task: for EACH of the 225 cells, output 1 if a player tile is present, 0 if empty.
+                The board has a 15×15 grid overlay. Column labels A–O run along the top edge;
+                row labels 1–15 run down the left edge.
 
-                HOW TO IDENTIFY A PLAYER TILE — a cell contains a tile if it shows:
-                - A solid coloured rectangular background (typically cream/tan/yellow or a bright colour)
-                - A single LARGE letter (A–Z) prominently displayed
-                - A small point-value number (e.g. 1, 2, 3, 8, 10) in the corner of the tile
+                Output exactly 15 rows, each containing exactly 15 characters:
+                - Use the UPPERCASE LETTER (A–Z) for cells that have a player-placed tile on them.
+                - Use '.' for every other cell — empty cells, bonus squares (2L, DL, 3W, TW, etc.),
+                  the center star, or any square without a physical tile piece.
 
-                A cell is EMPTY (output 0) if it shows:
-                - Only a bonus label: "2L", "DL", "3L", "TL", "2W", "DW", "3W", "TW"
-                - A star, coloured square, or plain background with no tile piece on it
-                - A small coordinate tag in the corner (e.g. "A1") — this overlay appears on ALL cells
+                HOW TO IDENTIFY A PLAYER TILE:
+                A tile is a solid-coloured rectangular piece sitting in the cell with a LARGE letter
+                in the centre and a small point-value number (e.g. 1, 3, 8, 10) in its corner.
+                Bonus labels like "2L", "DL", "3W" on empty coloured squares are NOT tiles — use '.'.
 
-                Work row by row, top to bottom (row 1 first through row 15 last).
-                Within each row, go left to right (column A through column O).
-
-                Return ONLY valid JSON with no other text — a list of 15 strings, each exactly 15 characters of '0' or '1':
-                {"grid": [
-                  "000000000000000",
-                  "000000100000000",
-                  "000001110000000",
-                  "000000100000000",
-                  "000000000000000",
-                  "000000000000000",
-                  "000000000000000",
-                  "000000000000000",
-                  "000000000000000",
-                  "000000000000000",
-                  "000000000000000",
-                  "000000000000000",
-                  "000000000000000",
-                  "000000000000000",
-                  "000000000000000"
-                ]}
-                """;
-    }
-
-    private List<int[]> parseOccupiedCells(String response) {
-        try {
-            String content = response.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
-            if (!content.startsWith("{")) {
-                int s = content.indexOf('{'), e = content.lastIndexOf('}');
-                if (s != -1 && e > s) content = content.substring(s, e + 1);
-                else return List.of();
-            }
-            JsonNode parsed = objectMapper.readTree(content);
-            List<int[]> result = new ArrayList<>();
-            JsonNode gridNode = parsed.path("grid");
-            if (!gridNode.isMissingNode() && gridNode.isArray()) {
-                for (int r = 0; r < Math.min(gridNode.size(), BoardState.SIZE); r++) {
-                    String rowStr = gridNode.get(r).asText();
-                    for (int c = 0; c < Math.min(rowStr.length(), BoardState.SIZE); c++) {
-                        if (rowStr.charAt(c) == '1') {
-                            result.add(new int[]{r, c});
-                        }
-                    }
-                }
-            }
-            return result;
-        } catch (Exception e) {
-            log.warn("Failed to parse occupied cells response: {}", e.getMessage());
-            return List.of();
-        }
-    }
-
-    private String buildReadLettersPrompt(List<int[]> occupiedCells) {
-        StringBuilder cellList = new StringBuilder();
-        for (int[] cell : occupiedCells) {
-            char col = (char) ('A' + cell[1]);
-            int row = cell[0] + 1;
-            cellList.append(String.format("  - %c%d (row=%d, col=%d)%n", col, row, cell[0], cell[1]));
-        }
-        return """
-                Look at this Scrabble board. A 15×15 grid is overlaid with column labels A–O (top),
-                row labels 1–15 (left), and a small coordinate tag in the top-left corner of every cell.
-
-                The following cells are known to contain player-placed letter tiles:
-                %s
-                For each cell listed:
-                1. Locate the cell using its coordinate tag (e.g. find the cell showing "C7" in its corner).
-                2. Read the LARGE letter on the tile — this is the player's letter.
-                3. Ignore any smaller bonus label you may see (2L, DL, 3W, etc.) — focus only on the tile letter.
-                4. A blank tile playing as a specific letter: return that letter in lowercase.
+                Scan strictly left to right, then top to bottom (row 1 first, row 15 last;
+                column A first, column O last). Use the grid lines to count cells precisely.
 
                 Return ONLY valid JSON with no other text:
-                {
-                  "cells": [
-                    {"row": 0, "col": 0, "letter": "A"},
-                    {"row": 7, "col": 7, "letter": "S"}
-                  ],
-                  "warnings": []
-                }
-
-                Only include the cells listed above. Add a warning only if a specific cell is physically
-                obscured or cut off and you cannot read it confidently.
-                """.formatted(cellList);
-    }
-
-    private void applyLettersToBoard(String response, BoardState boardState) {
-        try {
-            String content = response.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
-            if (!content.startsWith("{")) {
-                int s = content.indexOf('{'), e = content.lastIndexOf('}');
-                if (s != -1 && e > s) content = content.substring(s, e + 1);
-                else { log.warn("No JSON found in step-2 response"); return; }
-            }
-            JsonNode parsed = objectMapper.readTree(content);
-            for (JsonNode cellNode : parsed.path("cells")) {
-                int row = cellNode.path("row").asInt();
-                int col = cellNode.path("col").asInt();
-                if (row < 0 || row >= BoardState.SIZE || col < 0 || col >= BoardState.SIZE) continue;
-                JsonNode letterNode = cellNode.path("letter");
-                if (!letterNode.isNull() && !letterNode.isMissingNode()) {
-                    String letterStr = letterNode.asText();
-                    if (!letterStr.isBlank()) {
-                        boardState.getCell(row, col).setLetter(letterStr.charAt(0));
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to apply letters to board from step-2 response: {}", e.getMessage());
-        }
+                {"rows": [
+                  "...............",
+                  "...............",
+                  ".......S.......",
+                  "......ATE......",
+                  ".......R.......",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "..............."
+                ]}
+                Each string must be exactly 15 characters. Use only letters A–Z and '.'.
+                """;
     }
 
     // ── Provider resolution ───────────────────────────────────────────────────
