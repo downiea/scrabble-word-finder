@@ -54,7 +54,7 @@ public class GeminiVisionProvider implements VisionProvider {
         List<Map<String, Object>> parts = new ArrayList<>();
         parts.add(Map.of("text", prompt));
         parts.add(inlinePart(imageBytes, mediaType));
-        return post(parts, 256);
+        return post(parts, 512);
     }
 
     /**
