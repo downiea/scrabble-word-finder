@@ -191,6 +191,8 @@ public class BoardVisionService {
 
     /** Parses a {"rows": [...]} grid response and returns a populated VisionResult. */
     private VisionResult parseGridResponse(String response, GameConfig gameConfig, boolean debug) throws Exception {
+        log.debug("Grid response ({} chars): {}", response.length(),
+                response.length() > 300 ? response.substring(0, 300) + "…" : response);
         String content = response.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
         if (!content.startsWith("{")) {
             int s = content.indexOf('{'), e = content.lastIndexOf('}');

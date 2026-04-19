@@ -23,7 +23,7 @@ public class GeminiVisionProvider implements VisionProvider {
 
     private static final String MODEL       = "gemini-flash-latest";
     private static final String API_BASE    = "https://generativelanguage.googleapis.com/v1beta/models/";
-    private static final int    MAX_TOKENS  = 2048;
+    private static final int    MAX_TOKENS  = 8192;
 
     @Value("${gemini.api.key:}")
     private String apiKey;
