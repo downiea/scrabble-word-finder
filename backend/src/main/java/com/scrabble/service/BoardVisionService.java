@@ -135,9 +135,6 @@ public class BoardVisionService {
 
         log.info("Grid transcription: {} tiles found", debugCells.size());
 
-        // Boundary check: verify cells at the edge of every word cluster
-        boundaryCheckPass(boardBytes, boardState, provider, debug, debugCells);
-
         List<String> warnings = new ArrayList<>();
         if (debug) {
             warnings.add("[Grid] " + debugCells.size() + " tiles: " + String.join(", ", debugCells));
