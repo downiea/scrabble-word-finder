@@ -19,6 +19,70 @@ const HANDLE_CURSORS = {
   sw: 'sw-resize', w: 'w-resize',
 }
 
+const BOARD_SIZE = 15
+
+function BoardGridOverlay() {
+  const ticks = Array.from({ length: BOARD_SIZE - 1 }, (_, i) =>
+    ((i + 1) / BOARD_SIZE * 100).toFixed(4) + '%'
+  )
+
+  return (
+    <svg
+      style={{
+        position: 'absolute', inset: 0,
+        width: '100%', height: '100%',
+        pointerEvents: 'none', overflow: 'visible',
+      }}
+    >
+      {/* Grid lines */}
+      {ticks.map((t, i) => (
+        <React.Fragment key={i}>
+          <line x1={t} y1="0%" x2={t} y2="100%" stroke="rgba(0,0,0,0.55)" strokeWidth="0.8" />
+          <line x1="0%" y1={t} x2="100%" y2={t} stroke="rgba(0,0,0,0.55)" strokeWidth="0.8" />
+        </React.Fragment>
+      ))}
+
+      {/* Column labels A–O along the top */}
+      {Array.from({ length: BOARD_SIZE }, (_, c) => {
+        const x = ((c + 0.5) / BOARD_SIZE * 100).toFixed(4) + '%'
+        const label = String.fromCharCode(65 + c)
+        return (
+          <g key={`c${c}`}>
+            <text x={x} y="10" textAnchor="middle" fontSize="9"
+              fontFamily="sans-serif" fontWeight="bold" fill="white" stroke="white" strokeWidth="2" paintOrder="stroke">
+              {label}
+            </text>
+            <text x={x} y="10" textAnchor="middle" fontSize="9"
+              fontFamily="sans-serif" fontWeight="bold" fill="#1a4f96">
+              {label}
+            </text>
+          </g>
+        )
+      })}
+
+      {/* Row labels 1–15 along the left */}
+      {Array.from({ length: BOARD_SIZE }, (_, r) => {
+        const y = ((r + 0.5) / BOARD_SIZE * 100).toFixed(4) + '%'
+        const label = String(r + 1)
+        return (
+          <g key={`r${r}`}>
+            <text x="8" y={y} textAnchor="middle" fontSize="8"
+              fontFamily="sans-serif" fontWeight="bold" fill="white" stroke="white" strokeWidth="2" paintOrder="stroke"
+              dominantBaseline="middle">
+              {label}
+            </text>
+            <text x="8" y={y} textAnchor="middle" fontSize="8"
+              fontFamily="sans-serif" fontWeight="bold" fill="#1a4f96"
+              dominantBaseline="middle">
+              {label}
+            </text>
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 function CropOverlay({ crop, which, color, border, label, onStartDrag }) {
   const { left, top, width, height } = crop
   return (
@@ -41,10 +105,12 @@ function CropOverlay({ crop, which, color, border, label, onStartDrag }) {
         position: 'absolute', top: 2, left: 4,
         fontSize: 10, fontWeight: 700, color: border,
         background: 'rgba(255,255,255,0.75)', padding: '0 3px', borderRadius: 2,
-        pointerEvents: 'none',
+        pointerEvents: 'none', zIndex: 1,
       }}>
         {label}
       </span>
+
+      {which === 'board' && <BoardGridOverlay />}
 
       {Object.keys(HANDLE_CURSORS).map(h => {
         const s = {
@@ -53,6 +119,7 @@ function CropOverlay({ crop, which, color, border, label, onStartDrag }) {
           background: border,
           borderRadius: '50%',
           cursor: HANDLE_CURSORS[h],
+          zIndex: 2,
         }
         if (h.includes('n')) s.top = -5; else if (h.includes('s')) s.bottom = -5; else { s.top = '50%'; s.marginTop = -5 }
         if (h.includes('w')) s.left = -5; else if (h.includes('e')) s.right = -5; else { s.left = '50%'; s.marginLeft = -5 }
@@ -157,8 +224,8 @@ export default function CropEditor({ imageUrl, gameConfigId, initialBoardCrop, i
         </span>
         <span className="crop-editor-subtitle">
           {hasSavedCrops
-            ? 'Saved regions are shown. Drag to adjust, then save.'
-            : 'Enable a region and drag to draw it over the relevant part of the image.'}
+            ? 'Saved regions shown. Drag to adjust — align the grid lines with tile edges, then save.'
+            : 'Enable the board region and drag it until the 15×15 grid lines up with the tile edges.'}
         </span>
       </div>
       <div className="crop-editor-controls">
@@ -173,7 +240,11 @@ export default function CropEditor({ imageUrl, gameConfigId, initialBoardCrop, i
       </div>
 
       {(boardEnabled || tilesEnabled) && (
-        <p className="crop-hint">Drag the rectangle to move it. Drag a corner or edge handle to resize.</p>
+        <p className="crop-hint">
+          {boardEnabled
+            ? 'Resize the board region until every grid line falls between tiles, not through them.'
+            : 'Drag to position the tiles region over the rack.'}
+        </p>
       )}
 
       <div ref={containerRef} className="crop-image-container">
