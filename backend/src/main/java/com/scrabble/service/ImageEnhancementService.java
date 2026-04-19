@@ -13,18 +13,19 @@ import java.io.ByteArrayOutputStream;
  * Preprocesses board images before sending to a vision API.
  *
  * Applied in order:
- *   1. Upscale to at least 750px wide (50px per cell minimum)
+ *   1. Upscale to at least 1050px wide (70px per cell minimum)
  *   2. Sharpen — improves letter edge definition
  *   3. Contrast boost — makes dark letters pop against coloured tile backgrounds
- *   4. Grid overlay — draws 15×15 cell boundaries with A-O column and 1-15 row labels
- *      so the model can use the grid lines as precise position anchors
+ *   4. Grid overlay — draws 15×15 cell boundaries with A-O/1-15 edge labels plus
+ *      a coordinate tag (e.g. "C7") in the top-left corner of every cell so the
+ *      model has an unambiguous anchor anywhere on the board
  */
 @Slf4j
 @Service
 public class ImageEnhancementService {
 
-    private static final int BOARD_SIZE    = 15;
-    private static final int MIN_WIDTH_PX  = 750;   // 50px per cell minimum
+    private static final int BOARD_SIZE   = 15;
+    private static final int MIN_WIDTH_PX = 1050;  // 70px per cell minimum
 
     public byte[] enhanceForVision(byte[] imageBytes) {
         try {
@@ -92,8 +93,10 @@ public class ImageEnhancementService {
     }
 
     /**
-     * Draws a 15×15 grid with semi-transparent white lines and column/row labels.
-     * Labels sit inside the first row/column of cells so no canvas expansion is needed.
+     * Draws a 15×15 grid with:
+     *  - Thicker black semi-transparent lines (2.5px interior, 3px border)
+     *  - Column labels (A-O) along the top edge, row labels (1-15) along the left edge
+     *  - A small coordinate tag (e.g. "C7") in the top-left corner of every cell
      */
     private BufferedImage overlayGrid(BufferedImage src) {
         BufferedImage dst = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
@@ -107,9 +110,9 @@ public class ImageEnhancementService {
         float cellW = (float) w / BOARD_SIZE;
         float cellH = (float) h / BOARD_SIZE;
 
-        // Grid lines — black, semi-transparent
+        // Grid lines — black, semi-transparent, thicker
         g.setColor(new Color(0, 0, 0, 160));
-        g.setStroke(new BasicStroke(1.5f));
+        g.setStroke(new BasicStroke(2.5f));
         for (int i = 1; i < BOARD_SIZE; i++) {
             int x = Math.round(i * cellW);
             int y = Math.round(i * cellH);
@@ -119,25 +122,45 @@ public class ImageEnhancementService {
 
         // Border
         g.setColor(new Color(0, 0, 0, 200));
-        g.setStroke(new BasicStroke(2f));
+        g.setStroke(new BasicStroke(3f));
         g.drawRect(0, 0, w - 1, h - 1);
 
-        // Labels — small font, drawn with a dark shadow then white fill
-        int fontSize = Math.max(9, (int) (cellW * 0.22f));
-        Font font = new Font(Font.SANS_SERIF, Font.BOLD, fontSize);
-        g.setFont(font);
-        FontMetrics fm = g.getFontMetrics();
+        // Edge labels (column A-O top, row 1-15 left) — larger font
+        int edgeFontSize = Math.max(10, (int) (cellW * 0.22f));
+        Font edgeFont = new Font(Font.SANS_SERIF, Font.BOLD, edgeFontSize);
+        g.setFont(edgeFont);
+        FontMetrics efm = g.getFontMetrics();
 
         for (int c = 0; c < BOARD_SIZE; c++) {
             String label = String.valueOf((char) ('A' + c));
             float cx = c * cellW + cellW / 2f;
-            float ty = fm.getAscent() + 2;
-            drawLabel(g, fm, label, cx, ty);
+            drawLabel(g, efm, label, cx, efm.getAscent() + 2);
         }
         for (int r = 0; r < BOARD_SIZE; r++) {
             String label = String.valueOf(r + 1);
-            float cy = r * cellH + cellH / 2f + fm.getAscent() / 2f;
-            drawLabel(g, fm, label, fm.stringWidth(label) / 2f + 3, cy);
+            float cy = r * cellH + cellH / 2f + efm.getAscent() / 2f;
+            drawLabel(g, efm, label, efm.stringWidth(label) / 2f + 3, cy);
+        }
+
+        // Per-cell coordinate tags — tiny font in top-left corner of every cell
+        int tagFontSize = Math.max(7, (int) (cellW * 0.14f));
+        Font tagFont = new Font(Font.SANS_SERIF, Font.PLAIN, tagFontSize);
+        g.setFont(tagFont);
+        FontMetrics tfm = g.getFontMetrics();
+
+        for (int r = 0; r < BOARD_SIZE; r++) {
+            for (int c = 0; c < BOARD_SIZE; c++) {
+                String tag = String.valueOf((char) ('A' + c)) + (r + 1);
+                float tx = c * cellW + 2;
+                float ty = r * cellH + tfm.getAscent() + 1;
+                // White halo
+                g.setColor(new Color(255, 255, 255, 180));
+                g.drawString(tag, tx + 1, ty + 1);
+                g.drawString(tag, tx - 1, ty - 1);
+                // Dark text
+                g.setColor(new Color(0, 0, 0, 200));
+                g.drawString(tag, tx, ty);
+            }
         }
 
         g.dispose();
