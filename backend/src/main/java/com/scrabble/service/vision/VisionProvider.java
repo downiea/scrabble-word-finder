@@ -28,4 +28,19 @@ public interface VisionProvider {
 
     /** True if the API key is configured and the provider is usable. */
     boolean isAvailable();
+
+    /**
+     * True if this provider can accept multiple images in a single request.
+     * Used to decide whether to use cell-batch extraction.
+     */
+    default boolean supportsMultiImage() { return false; }
+
+    /**
+     * Send multiple cell images in one request. Images are in reading order
+     * (left-to-right, top-to-bottom: cell 0 = A1, cell 14 = O1, cell 15 = A2 …).
+     * Only called when {@link #supportsMultiImage()} returns true.
+     */
+    default String callVisionBatch(java.util.List<byte[]> images, String mediaType, String prompt) throws Exception {
+        throw new UnsupportedOperationException(getName() + " does not support multi-image batch calls");
+    }
 }

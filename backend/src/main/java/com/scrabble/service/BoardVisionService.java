@@ -16,7 +16,6 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -74,8 +73,9 @@ public class BoardVisionService {
 
             VisionResult result;
             if (layoutKnown) {
-                // Grid transcription: model outputs a 15×15 letter grid directly
-                result = gridTranscriptionExtract(boardBytes, boardMedia, gameConfig, provider, debug);
+                result = provider.supportsMultiImage()
+                        ? cellBatchExtract(boardBytes, gameConfig, provider, debug)
+                        : gridTranscriptionExtract(boardBytes, boardMedia, gameConfig, provider, debug);
             } else {
                 String prompt = isPhysical
                         ? buildPhysicalPrompt(gameConfig, separateTiles)
@@ -109,7 +109,88 @@ public class BoardVisionService {
     private VisionResult gridTranscriptionExtract(byte[] boardBytes, String boardMedia,
                                                   GameConfig gameConfig, VisionProvider provider, boolean debug) throws Exception {
         String response = provider.callVision(boardBytes, boardMedia, buildGridTranscriptionPrompt());
+        return parseGridResponse(response, gameConfig, debug);
+    }
 
+    // ── Cell-batch extraction (Gemini) ────────────────────────────────────────
+
+    /**
+     * Splits the enhanced board image into 225 individual cell PNGs, sends them all
+     * in one Gemini request with position determined by order (not visual counting),
+     * and parses the returned letter grid.
+     */
+    private VisionResult cellBatchExtract(byte[] boardBytes, GameConfig gameConfig,
+                                          VisionProvider provider, boolean debug) throws Exception {
+        BufferedImage boardImg = ImageIO.read(new ByteArrayInputStream(boardBytes));
+        if (boardImg == null) throw new RuntimeException("Could not decode board image for cell batch");
+
+        int W = boardImg.getWidth();
+        int H = boardImg.getHeight();
+
+        // Crop all 225 cells in reading order
+        List<byte[]> cells = new ArrayList<>(BoardState.SIZE * BoardState.SIZE);
+        for (int r = 0; r < BoardState.SIZE; r++) {
+            for (int c = 0; c < BoardState.SIZE; c++) {
+                cells.add(cropCell(boardImg, W, H, r, c));
+            }
+        }
+
+        String prompt = buildCellBatchPrompt();
+        String response = provider.callVisionBatch(cells, "image/png", prompt);
+        log.info("Gemini cell batch response received ({} chars)", response.length());
+
+        return parseGridResponse(response, gameConfig, debug);
+    }
+
+    private byte[] cropCell(BufferedImage img, int W, int H, int r, int c) throws Exception {
+        int x = (int) Math.round((double) c * W / BoardState.SIZE);
+        int y = (int) Math.round((double) r * H / BoardState.SIZE);
+        int w = Math.max(1, Math.min((int) Math.round((double) (c + 1) * W / BoardState.SIZE) - x, W - x));
+        int h = Math.max(1, Math.min((int) Math.round((double) (r + 1) * H / BoardState.SIZE) - y, H - y));
+        BufferedImage cell = img.getSubimage(x, y, w, h);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(cell, "png", out);
+        return out.toByteArray();
+    }
+
+    private String buildCellBatchPrompt() {
+        return """
+                You are given 225 images, each a single cell from a 15×15 Scrabble board.
+                The images are in reading order: image 1 = row 1 col A, image 15 = row 1 col O,
+                image 16 = row 2 col A, …, image 225 = row 15 col O.
+
+                For each image, output:
+                - The UPPERCASE LETTER (A-Z) if a player-placed tile is visible in that cell
+                - A period '.' if the cell is empty (bonus label, star, plain background, no tile)
+
+                A player tile has a solid coloured background, a LARGE central letter, and a small
+                point-value number in its corner. Bonus labels (2L, DL, 3W, TW etc.) on empty squares
+                are NOT tiles.
+
+                Output exactly 15 rows of exactly 15 characters each as JSON:
+                {"rows": [
+                  "...............",
+                  "...............",
+                  ".......S.......",
+                  "......ATE......",
+                  ".......R.......",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "...............",
+                  "..............."
+                ]}
+                Use only letters A-Z and '.'. No other characters.
+                """;
+    }
+
+    /** Parses a {"rows": [...]} grid response and returns a populated VisionResult. */
+    private VisionResult parseGridResponse(String response, GameConfig gameConfig, boolean debug) throws Exception {
         String content = response.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
         if (!content.startsWith("{")) {
             int s = content.indexOf('{'), e = content.lastIndexOf('}');
@@ -133,17 +214,11 @@ public class BoardVisionService {
             }
         }
 
-        log.info("Grid transcription: {} tiles found", debugCells.size());
-
+        log.info("Grid parse: {} tiles", debugCells.size());
         List<String> warnings = new ArrayList<>();
-        if (debug) {
-            warnings.add("[Grid] " + debugCells.size() + " tiles: " + String.join(", ", debugCells));
-        }
+        if (debug) warnings.add("[Gemini cells] " + debugCells.size() + " tiles: " + String.join(", ", debugCells));
 
-        return VisionResult.builder()
-                .boardState(boardState)
-                .warnings(warnings)
-                .build();
+        return VisionResult.builder().boardState(boardState).warnings(warnings).build();
     }
 
     /** Creates a BoardState pre-populated with squareTypes from the game config's boardLayout. */
@@ -166,131 +241,6 @@ public class BoardVisionService {
         return board;
     }
 
-    // ── Boundary check pass ───────────────────────────────────────────────────
-
-    private static final String CELL_CHECK_PROMPT = """
-            This is a single cell cropped from a Scrabble board.
-            Does it contain a player-placed letter tile?
-
-            A tile is a solid coloured rectangular piece with a LARGE letter (A-Z) in the centre
-            and a small point-value number (e.g. 1, 3, 8, 10) in its corner.
-            An empty cell shows only a bonus label (2L, DL, 3W, TW), a star, or a plain background.
-
-            Reply with ONLY ONE character:
-            - The uppercase letter (A-Z) if a tile is present
-            - A period "." if the cell is empty
-
-            Nothing else. A single character only.
-            """;
-
-    private static final int[][] DIRS = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-
-    /**
-     * For every cell on the boundary between occupied and empty (both sides),
-     * crops the cell from the enhanced image and asks the vision provider to confirm
-     * whether a tile is present. Corrections are applied in-place to boardState.
-     * Runs all cell checks in parallel.
-     */
-    private void boundaryCheckPass(byte[] boardBytes, BoardState boardState,
-                                   VisionProvider provider, boolean debug, List<String> debugCells) {
-        BufferedImage boardImg;
-        try {
-            boardImg = ImageIO.read(new ByteArrayInputStream(boardBytes));
-            if (boardImg == null) { log.warn("Boundary check: could not read board image"); return; }
-        } catch (Exception e) {
-            log.warn("Boundary check: image read failed: {}", e.getMessage()); return;
-        }
-
-        int W = boardImg.getWidth();
-        int H = boardImg.getHeight();
-
-        boolean[][] occ = new boolean[BoardState.SIZE][BoardState.SIZE];
-        for (int r = 0; r < BoardState.SIZE; r++)
-            for (int c = 0; c < BoardState.SIZE; c++)
-                occ[r][c] = boardState.getCell(r, c).getLetter() != null;
-
-        // Include any cell touching a boundary between occupied and empty
-        List<int[]> zone = new ArrayList<>();
-        for (int r = 0; r < BoardState.SIZE; r++) {
-            for (int c = 0; c < BoardState.SIZE; c++) {
-                for (int[] d : DIRS) {
-                    int nr = r + d[0], nc = c + d[1];
-                    if (nr >= 0 && nr < BoardState.SIZE && nc >= 0 && nc < BoardState.SIZE
-                            && occ[nr][nc] != occ[r][c]) {
-                        zone.add(new int[]{r, c});
-                        break;
-                    }
-                }
-            }
-        }
-
-        log.info("Boundary check: verifying {} cells in parallel", zone.size());
-
-        BufferedImage imgRef = boardImg;
-        List<CompletableFuture<Void>> futures = zone.stream().map(cell ->
-            CompletableFuture.runAsync(() -> {
-                int r = cell[0], c = cell[1];
-                try {
-                    byte[] cellBytes = cropCell(imgRef, W, H, r, c);
-                    String raw = provider.callVisionSimple(cellBytes, "image/png", CELL_CHECK_PROMPT).trim();
-                    Character result = parseCellResponse(raw);
-                    if (result == null) return;
-
-                    Cell boardCell = boardState.getCell(r, c);
-                    if (result == '.') {
-                        if (boardCell.getLetter() != null) {
-                            log.info("Boundary check: removed false tile at ({},{}) was '{}'", r, c, boardCell.getLetter());
-                            boardCell.setLetter(null);
-                            if (debug) debugCells.removeIf(s -> s.startsWith(String.valueOf((char)('A'+c)) + (r+1) + "="));
-                        }
-                    } else {
-                        if (!result.equals(boardCell.getLetter())) {
-                            log.info("Boundary check: corrected ({},{}) '{}' -> '{}'", r, c, boardCell.getLetter(), result);
-                            boardCell.setLetter(result);
-                            if (debug) {
-                                String tag = String.valueOf((char) ('A' + c)) + (r + 1) + "=" + result;
-                                debugCells.removeIf(s -> s.startsWith(String.valueOf((char)('A'+c)) + (r+1) + "="));
-                                debugCells.add(tag + "*");
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    log.debug("Boundary check cell ({},{}): {}", r, c, e.getMessage());
-                }
-            })
-        ).collect(Collectors.toList());
-
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-        log.info("Boundary check complete");
-    }
-
-    private Character parseCellResponse(String response) {
-        if (response == null || response.isBlank()) return null;
-        String trimmed = response.trim();
-        if (trimmed.length() == 1) {
-            char ch = trimmed.charAt(0);
-            if (ch == '.') return '.';
-            if (Character.isLetter(ch)) return Character.toUpperCase(ch);
-        }
-        if (trimmed.equalsIgnoreCase("empty") || trimmed.startsWith(".")) return '.';
-        for (String word : trimmed.split("\\s+")) {
-            if (word.length() == 1 && Character.isLetter(word.charAt(0))) return Character.toUpperCase(word.charAt(0));
-        }
-        return null;
-    }
-
-    private byte[] cropCell(BufferedImage img, int W, int H, int r, int c) throws Exception {
-        int x = (int) Math.round((double) c * W / BoardState.SIZE);
-        int y = (int) Math.round((double) r * H / BoardState.SIZE);
-        int w = Math.max(1, (int) Math.round((double) (c + 1) * W / BoardState.SIZE) - x);
-        int h = Math.max(1, (int) Math.round((double) (r + 1) * H / BoardState.SIZE) - y);
-        w = Math.min(w, W - x);
-        h = Math.min(h, H - y);
-        BufferedImage cell = img.getSubimage(x, y, w, h);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        ImageIO.write(cell, "png", out);
-        return out.toByteArray();
-    }
 
     private String buildGridTranscriptionPrompt() {
         return """
