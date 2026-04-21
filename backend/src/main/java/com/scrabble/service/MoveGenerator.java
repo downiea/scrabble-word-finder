@@ -143,7 +143,6 @@ public class MoveGenerator {
                             || board.getCell(nextRow, nextCol).isEmpty();
 
                     if (nextWord.length() >= 2 && nextCellEmpty
-                            && wordListEngine.isValidWord(nextWord, ruleset)
                             && mustPassThroughAnchor(board, startRow, startCol, row, col, direction)) {
                         tryAddMove(board, startRow, startCol, direction, nextWord, newTilesUsed, ruleset, gameConfig, results);
                     }
@@ -196,13 +195,31 @@ public class MoveGenerator {
     private void tryAddMove(BoardState board, int startRow, int startCol, Direction direction,
                              String word, List<Character> tilesUsed, Ruleset ruleset,
                              GameConfig gameConfig, List<Move> results) {
-        if (!wordListEngine.isValidWord(word, ruleset)) return;
+        // Include any existing tiles immediately before startRow/startCol in the same direction.
+        // Without this, playing "AT" next to an existing "C" would be validated as "AT" rather
+        // than the full board word "CAT", allowing invalid inline combinations through.
+        int dr = direction == Direction.DOWN ? 1 : 0;
+        int dc = direction == Direction.ACROSS ? 1 : 0;
+        int r = startRow - dr, c = startCol - dc;
+        StringBuilder prefix = new StringBuilder();
+        while (r >= 0 && c >= 0 && r < BoardState.SIZE && c < BoardState.SIZE) {
+            Cell cell = board.getCell(r, c);
+            if (cell == null || cell.isEmpty()) break;
+            prefix.insert(0, cell.getLetter());
+            r -= dr;
+            c -= dc;
+        }
+        String fullWord = prefix.isEmpty() ? word : prefix + word;
+        int actualStartRow = startRow - dr * prefix.length();
+        int actualStartCol = startCol - dc * prefix.length();
 
-        int score = calculateScore(board, startRow, startCol, direction, word, tilesUsed.size(), gameConfig);
+        if (!wordListEngine.isValidWord(fullWord, ruleset)) return;
+
+        int score = calculateScore(board, actualStartRow, actualStartCol, direction, fullWord, tilesUsed.size(), gameConfig);
         results.add(Move.builder()
-                .word(word)
-                .startRow(startRow)
-                .startCol(startCol)
+                .word(fullWord)
+                .startRow(actualStartRow)
+                .startCol(actualStartCol)
                 .direction(direction)
                 .tilesUsed(new ArrayList<>(tilesUsed))
                 .rawScore(score)

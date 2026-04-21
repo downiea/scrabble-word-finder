@@ -81,6 +81,7 @@ export default function App() {
   const [analysing, setAnalysing] = useState(false)
   const [analyseError, setAnalyseError] = useState(null)
   const [suggestions, setSuggestions] = useState(null)
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null)
 
   const [devMode, setDevMode] = useState(() => localStorage.getItem('devMode') === 'true')
   const [debugEnhancedImage, setDebugEnhancedImage] = useState(null)
@@ -191,6 +192,7 @@ export default function App() {
     try {
       const result = await analyseBoard(occupiedCells(grid, squareTypes), tiles, ruleset, gameConfigId)
       setSuggestions(result.suggestions)
+      setSelectedSuggestion(result.suggestions?.[0] ?? null)
       setStep(2)
     } catch (err) {
       setAnalyseError(err.message)
@@ -362,7 +364,7 @@ export default function App() {
             <BoardGrid
               cells={grid}
               squareTypes={squareTypes}
-              highlightMove={suggestions?.[0]}
+              highlightMove={selectedSuggestion}
               readOnly
             />
           </section>
@@ -381,7 +383,13 @@ export default function App() {
                 </div>
               </div>
             )}
-            {suggestions && <SuggestionList suggestions={suggestions} />}
+            {suggestions && (
+              <SuggestionList
+                suggestions={suggestions}
+                onSelect={setSelectedSuggestion}
+                selectedRank={selectedSuggestion?.rank}
+              />
+            )}
           </section>
         </main>
       )}

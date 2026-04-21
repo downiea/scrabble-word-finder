@@ -357,6 +357,11 @@ label {
 .suggestion-card.rank-2 { border-left-color: #aaa; }
 .suggestion-card.rank-3 { border-left-color: #cd7f32; }
 
+.suggestion-card.selected {
+  background: #f0f7ff;
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
 .suggestion-header {
   display: flex;
   align-items: center;

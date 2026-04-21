@@ -10,7 +10,7 @@ const RANK_LABELS = {
   5: '5th Choice',
 }
 
-export default function SuggestionList({ suggestions }) {
+export default function SuggestionList({ suggestions, onSelect, selectedRank }) {
   if (!suggestions || suggestions.length === 0) {
     return <p className="no-suggestions">No valid moves found. Check your tiles and try again.</p>
   }
@@ -19,7 +19,12 @@ export default function SuggestionList({ suggestions }) {
     <div className="suggestion-list">
       <h2>Top Suggestions</h2>
       {suggestions.map((s) => (
-        <div key={s.rank} className={`suggestion-card rank-${s.rank}`}>
+        <div
+          key={s.rank}
+          className={`suggestion-card rank-${s.rank}${s.rank === selectedRank ? ' selected' : ''}`}
+          onClick={() => onSelect?.(s)}
+          style={{ cursor: onSelect ? 'pointer' : undefined }}
+        >
           <div className="suggestion-header">
             <span className="rank-label">{RANK_LABELS[s.rank] || `#${s.rank}`}</span>
             <span className="word">{s.word}</span>
